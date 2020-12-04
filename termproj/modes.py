@@ -4,7 +4,6 @@ module_manager.review()
 
 import math, copy, random
 
-# import items
 
 # Code from: https://www.cs.cmu.edu/~112/notes/notes-animations-part1.html
 from cmu_112_graphics import *
@@ -303,6 +302,7 @@ class TermProject(ModalApp):
         app.mainMenuMode = MainMenuMode()
         app.gameMode = GameMode()
         app.helpMode = HelpMode()
+        # app.mazeMode = MazeMode()
         # app.setActiveMode(app.mainMenuMode)
         app.setActiveMode(app.gameMode)
         app.timerDelay = 50
