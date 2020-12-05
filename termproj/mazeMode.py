@@ -27,6 +27,38 @@ class MazeMode(Mode):
         mode.currentCell = mode.grids[0]
 
         mode.font = 'Arial 26 bold'
+        mode.answer = ""
+
+        # Code from: https://www.geeksforgeeks.org/python-tkinter-entry-widget/
+        root = Tk()
+        root.title('text entry')
+        Label(root, text = 'Enter here').grid(row = 0)
+        textEntry = Entry(root)
+        textEntry.grid(row = 1)
+
+        def reply():
+            print(textEntry.get()) 
+            mode.answer = textEntry.get()
+            textEntry.delete(0, 'end')
+            root.destroy()
+
+        button = Button(root, text = "send", command = reply)
+        button.grid(row = 2)
+    
+        # Reference: https://www.tutorialspoint.com/python/tk_text.htm
+        textEditor = Toplevel()
+        textEditor.title('text editor')
+        textEditor.geometry("300x300")
+        
+        def saveText():
+            print(textInput.get("1.0", END))
+        
+        saveButton = Button(textEditor, text = "save", command = saveText)
+        saveButton.pack(side = TOP, anchor = NW)
+        
+        textInput = Text(textEditor)
+        textInput.pack()
+        
 
     def drawMaze(mode):
         for row in range(mode.rows):
@@ -105,7 +137,10 @@ class MazeMode(Mode):
                 mode.pY += 1
         elif (event.key == "Left"):
             if (not mode.getPlayerCell(mode.pX, mode.pY, 3)):
-                mode.pX -= 1     
+                mode.pX -= 1    
+
+        # elif (event.key == "z"):
+        #     print(mode.answer == "hi")
 
 class Cell(MazeMode):
     def __init__(self, col, row, cols, rows, grids, gridSize):
@@ -182,39 +217,7 @@ class TermProject(ModalApp):
         # app.timerDelay = 50
 
 
-        # Code from: https://stackoverflow.com/questions/20865010/how-do-i-create-an-input-box-with-python
-        root = Tk()
-        root.title('text entry')
-        textEntry = Entry(root)
-        textEntry.pack()
-
-        textEntry.focus_set()
-
-        def reply():
-            print(textEntry.get()) 
-            textEntry.delete(0, 'end')
-            root.destroy()
-
-        button = Button(root, text = "send", width = 10, command = reply)
-        button.pack()
-    
-        # Reference: https://www.tutorialspoint.com/python/tk_text.htm
-        textEditor = Toplevel()
-        textEditor.title('text editor')
-        textEditor.geometry("300x300")
-        # scrollBar = Scrollbar(textEditor)
-        # scrollBar.pack(side=RIGHT, fill=Y)
         
-        def saveText():
-            print(textInput.get("1.0", END))
-        
-        saveButton = Button(textEditor, text = "save", width = 10, command = saveText)
-        saveButton.pack()
-        textInput = Text(textEditor)
-        textInput.pack()
-        
-        # scrollBar.config(command=textInput.yview)
-
 app = TermProject()
 # mainloop()
 # app = TermProject(width=800, height=600)
