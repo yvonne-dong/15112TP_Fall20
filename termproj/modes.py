@@ -259,9 +259,6 @@ class RoomMode(Mode):
             if (mode.currentSide == mode.items[i].sideIdx) and (mode.items[i].status == False):
                 mode.items[i].displayItem(canvas)
 
-# class roomProperties(RoomMode):
-#     def __init__
-
 class item(RoomMode):
     def __init__(self, properties, pos, size, sideIdx):
         self.properties = properties
@@ -313,6 +310,8 @@ class item(RoomMode):
         button = Button(root, text = "send", command = reply)
         button.grid(row = 2)
 
+# !!!Broken rn please look at the version in mazeMode.py!!!
+# Algorithm (written in English) from: https://en.wikipedia.org/wiki/Maze_generation_algorithm#Iterative_implementation
 class MazeMode(Mode):
     def appStarted(mode):
         mode.mazeWidth = mode.height
@@ -366,28 +365,24 @@ class MazeMode(Mode):
         canvas.create_rectangle(0, 0, mode.width, mode.height, fill="black")
         canvas.create_rectangle(0, 0, mode.mazeWidth, mode.mazeHeight, fill="black", outline = "white", width = 1)
         
-        if (len(mode.stack) == 0):
-            for cell in range(len(mode.grids)):   
-                mode.grids[cell].drawCell(canvas)
+        for cell in range(len(mode.grids)):   
+            mode.grids[cell].drawCell(canvas)
         
-            for i in range(len(mode.roomCells)):
-                row, col = mode.roomCells[i][0], mode.roomCells[i][1]
-                mode.drawRoomCell(canvas, row, col, "room")
+        for i in range(len(mode.roomCells)):
+            row, col = mode.roomCells[i][0], mode.roomCells[i][1]
+            mode.drawRoomCell(canvas, row, col, "room")
+        
+        mode.drawRoomCell(canvas, mode.pY, mode.pX, "player")
 
-            mode.currentCell.visited = True
-            # mode.currentCell.drawCurrentCell(canvas)  
-            mode.drawRoomCell(canvas, mode.pY, mode.pX, "player")
-        else:
-            mode.displayText(canvas, "LOADING MAZE...", (mode.height/2, mode.height/2))
-
-        next = mode.currentCell.checkNeighbors()
-        if (next is not None):
-            next.visited = True
-            mode.stack.append(mode.currentCell)
-            mode.removeWall(mode.currentCell, next)
-            mode.currentCell = next
-        elif (len(mode.stack) > 0):
+        while (len(mode.stack) > 0):
             mode.currentCell = mode.stack.pop()    
+            next = mode.currentCell.checkNeighbors()
+            if (next is not None):
+                mode.stack.append(mode.currentCell)
+                mode.removeWall(mode.currentCell, next)
+                mode.currentCell = next
+                mode.currentCell.visited = True
+                mode.stack.append(mode.currentCell)
     
     def drawRoomCell(mode, canvas, row, col, drawMode):
         x1, y1, x2, y2 = col * mode.gridSize, row * mode.gridSize, (col + 1) * mode.gridSize, (row + 1) * mode.gridSize

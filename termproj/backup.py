@@ -8,7 +8,6 @@ from cmu_112_graphics import *
 def rgbString(r, g, b):
     return f'#{r:02x}{g:02x}{b:02x}'
 
-# Algorithm (written in English) from: https://en.wikipedia.org/wiki/Maze_generation_algorithm#Iterative_implementation
 class MazeMode(Mode):
     def appStarted(mode):
         mode.mazeWidth = mode.height
@@ -34,8 +33,7 @@ class MazeMode(Mode):
 
         mode.drawMaze()
         mode.currentCell = mode.grids[0]
-        mode.currentCell.visited = True
-        mode.stack.append(mode.currentCell)
+
         mode.font = 'Arial 26 bold' 
 
     def drawMaze(mode):
@@ -44,6 +42,23 @@ class MazeMode(Mode):
                 cell = Cell(col, row, mode.cols, mode.rows, mode.grids, mode.gridSize)
                 mode.grids.append(cell)
 
+    def removeWall(mode, current, next):
+        dcol = current.col - next.col
+        if (dcol == 1):
+            current.walls[3] = False
+            next.walls[1] = False
+        elif (dcol == -1):
+            current.walls[1] = False
+            next.walls[3] = False
+
+        drow = current.row - next.row
+        if (drow == 1):
+            current.walls[0] = False
+            next.walls[2] = False
+        elif (drow == -1):
+            current.walls[2] = False
+            next.walls[0] = False
+
     def displayText(mode, canvas, text, pos):
         canvas.create_text(pos[0], pos[1], text = text, font = mode.font, fill = 'white')
 
@@ -51,49 +66,34 @@ class MazeMode(Mode):
         canvas.create_rectangle(0, 0, mode.width, mode.height, fill="black")
         canvas.create_rectangle(0, 0, mode.mazeWidth, mode.mazeHeight, fill="black", outline = "white", width = 1)
         
-        for cell in range(len(mode.grids)):   
-            mode.grids[cell].drawCell(canvas)
+        if (len(mode.stack) == 0):
+            for cell in range(len(mode.grids)):   
+                mode.grids[cell].drawCell(canvas)
         
-        for i in range(len(mode.roomCells)):
-            row, col = mode.roomCells[i][0], mode.roomCells[i][1]
-            mode.drawRoomCell(canvas, row, col, "room")
-        
-        mode.drawRoomCell(canvas, mode.pY, mode.pX, "player")
+            for i in range(len(mode.roomCells)):
+                row, col = mode.roomCells[i][0], mode.roomCells[i][1]
+                mode.drawRoomCell(canvas, row, col, "room")
 
-        while (len(mode.stack) > 0):
+            mode.currentCell.visited = True
+            # mode.currentCell.drawCurrentCell(canvas)  
+            mode.drawRoomCell(canvas, mode.pY, mode.pX, "player")
+        else:
+            mode.displayText(canvas, "LOADING MAZE...", (mode.height/2, mode.height/2))
+
+        next = mode.currentCell.checkNeighbors()
+        if (next is not None):
+            next.visited = True
+            mode.stack.append(mode.currentCell)
+            mode.removeWall(mode.currentCell, next)
+            mode.currentCell = next
+        elif (len(mode.stack) > 0):
             mode.currentCell = mode.stack.pop()    
-            next = mode.currentCell.checkNeighbors()
-            if (next is not None):
-                mode.stack.append(mode.currentCell)
-                mode.removeWall(mode.currentCell, next)
-                mode.currentCell = next
-                mode.currentCell.visited = True
-                mode.stack.append(mode.currentCell)
-                
+        
         for r in mode.rooms:
             if r.displayRoom:
-                r.drawViewport(canvas, [(0, 0), (400, 400)])   
-    
-    def removeWall(mode, current, next):
-        dcol = current.col - next.col
-        # r - l
-        if (dcol == 1):
-            current.walls["left"] = False
-            next.walls["right"] = False
-        # l - r
-        elif (dcol == -1):
-            current.walls["right"] = False
-            next.walls["left"] = False
-
-        drow = current.row - next.row
-        # d - t
-        if (drow == 1):
-            current.walls["top"] = False
-            next.walls["bottom"] = False
-        # t - d
-        elif (drow == -1):
-            current.walls["bottom"] = False
-            next.walls["top"] = False         
+                r.drawViewport(canvas, [(0, 0), (400, 400)])
+        # if mode.drawRoom:
+        #     mode.room.drawViewport(canvas, [(0, 0), (400, 400)])
     
     def drawRoomCell(mode, canvas, row, col, drawMode):
         x1, y1, x2, y2 = col * mode.gridSize, row * mode.gridSize, (col + 1) * mode.gridSize, (row + 1) * mode.gridSize
@@ -115,16 +115,16 @@ class MazeMode(Mode):
         if (event.key == "r"):
             mode.appStarted()
         elif (event.key == "Up"):
-            if (not mode.getPlayerCell(mode.pX, mode.pY, "top")):
+            if (not mode.getPlayerCell(mode.pX, mode.pY, 0)):
                 mode.pY -= 1
         elif (event.key == "Right"):
-            if (not mode.getPlayerCell(mode.pX, mode.pY, "right")):
+            if (not mode.getPlayerCell(mode.pX, mode.pY, 1)):
                 mode.pX += 1
         elif (event.key == "Down"):
-            if (not mode.getPlayerCell(mode.pX, mode.pY, "bottom")):
+            if (not mode.getPlayerCell(mode.pX, mode.pY, 2)):
                 mode.pY += 1
         elif (event.key == "Left"):
-            if (not mode.getPlayerCell(mode.pX, mode.pY, "left")):
+            if (not mode.getPlayerCell(mode.pX, mode.pY, 3)):
                 mode.pX -= 1    
         elif (event.key == "Enter"):
             enterRoom = mode.checkIfEnterRoom((mode.pY, mode.pX), mode.roomCells)
@@ -134,6 +134,7 @@ class MazeMode(Mode):
                 mode.rooms[roomId].displayRoom = not mode.rooms[roomId].displayRoom
                 # mode.drawRoom = True
                 
+
 class Cell(MazeMode):
     def __init__(self, col, row, cols, rows, grids, gridSize):
         self.col = col
@@ -142,25 +143,18 @@ class Cell(MazeMode):
         self.rows = rows
         self.grids = grids
 
+        self.walls = [True, True, True, True]
+        self.visited = False
         self.x1 = col * gridSize
         self.y1 = row * gridSize
         self.x2 = (col + 1) * gridSize
         self.y2 = (row + 1) * gridSize
-        self.walls ={
-                        "top": True,
-                        "right": True,
-                        "bottom": True,
-                        "left": True
-                    }
-        self.visited = False
-        
     
     def checkNeighbors(self):
-        # create a list to store all possible neighbors
         neighbors = []
         topCell = self.getCell(self.col, self.row - 1)
         rightCell = self.getCell(self.col + 1, self.row)
-        bottomCell = self.getCell(self.col, self.row + 1)
+        downCell = self.getCell(self.col, self.row + 1)
         leftCell = self.getCell(self.col - 1, self.row)
 
         if (topCell is not None) and (not topCell.visited):
@@ -169,8 +163,8 @@ class Cell(MazeMode):
         if (rightCell is not None) and (not rightCell.visited):
             neighbors.append(rightCell)
         
-        if (bottomCell is not None) and (not bottomCell.visited):
-            neighbors.append(bottomCell)
+        if (downCell is not None) and (not downCell.visited):
+            neighbors.append(downCell)
 
         if (leftCell is not None) and (not leftCell.visited):
             neighbors.append(leftCell)
@@ -190,17 +184,17 @@ class Cell(MazeMode):
         if self.visited:
             canvas.create_rectangle(self.x1, self.y1, self.x2, self.y2, fill = "purple", width = 0)
 
-        # top
-        if self.walls["top"]:
+        # up
+        if self.walls[0]:
             canvas.create_line(self.x1, self.y1, self.x2, self.y1, fill = "white", width = 1)
         # right
-        if self.walls["right"]:
+        if self.walls[1]:
             canvas.create_line(self.x2, self.y1, self.x2, self.y2, fill = "white", width = 1)
         # bottom
-        if self.walls["bottom"]:
+        if self.walls[2]:
             canvas.create_line(self.x2, self.y2, self.x1, self.y2, fill = "white", width = 1)
         # left
-        if self.walls["left"]:
+        if self.walls[3]:
             canvas.create_line(self.x1, self.y2, self.x1, self.y1, fill = "white", width = 1)
 
     def drawCurrentCell(self, canvas):
