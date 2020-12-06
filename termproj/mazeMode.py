@@ -7,12 +7,12 @@ from cmu_112_graphics import *
 
 class MazeMode(Mode):
     def appStarted(mode):
-        mode.mazeWidth = 500
-        mode.mazeHeight = 500
+        mode.mazeWidth = mode.height
+        mode.mazeHeight = mode.height
         mode.gridSize = 100
         mode.cols = math.floor(mode.mazeWidth/mode.gridSize) # width/gs
         mode.rows = math.floor(mode.mazeHeight/mode.gridSize) # height/gs
-        mode.roomLen = 5
+        mode.roomLen = 4
         mode.roomCells = []
 
         mode.pX, mode.pY = 0, 0
@@ -23,42 +23,14 @@ class MazeMode(Mode):
             rcX, rcY = math.floor(random.randrange(0, mode.cols)), math.floor(random.randrange(0, mode.rows))
             mode.roomCells.append((rcX, rcY))
 
+
         mode.drawMaze()
         mode.currentCell = mode.grids[0]
 
-        mode.font = 'Arial 26 bold'
-        mode.answer = ""
+        mode.font = 'Arial 26 bold' 
 
-        # Code from: https://www.geeksforgeeks.org/python-tkinter-entry-widget/
-        root = Tk()
-        root.title('text entry')
-        Label(root, text = 'Enter here').grid(row = 0)
-        textEntry = Entry(root)
-        textEntry.grid(row = 1)
-
-        def reply():
-            print(textEntry.get()) 
-            mode.answer = textEntry.get()
-            textEntry.delete(0, 'end')
-            root.destroy()
-
-        button = Button(root, text = "send", command = reply)
-        button.grid(row = 2)
-    
-        # Reference: https://www.tutorialspoint.com/python/tk_text.htm
-        textEditor = Toplevel()
-        textEditor.title('text editor')
-        textEditor.geometry("300x300")
-        
-        def saveText():
-            print(textInput.get("1.0", END))
-        
-        saveButton = Button(textEditor, text = "save", command = saveText)
-        saveButton.pack(side = TOP, anchor = NW)
-        
-        textInput = Text(textEditor)
-        textInput.pack()
-        
+        mode.room = RoomMode(0)
+        mode.drawRoom = False
 
     def drawMaze(mode):
         for row in range(mode.rows):
@@ -84,20 +56,25 @@ class MazeMode(Mode):
             next.walls[0] = False
 
     def displayText(mode, canvas, text, pos):
-        canvas.create_text(pos[0], pos[1], text = text, font = mode.font, fill = 'white', anchor='e')
+        canvas.create_text(pos[0], pos[1], text = text, font = mode.font, fill = 'white')
 
     def redrawAll(mode, canvas):
-        canvas.create_rectangle(0, 0, mode.mazeWidth, mode.mazeHeight, fill="black")
+        canvas.create_rectangle(0, 0, mode.width, mode.height, fill="black")
+        canvas.create_rectangle(0, 0, mode.mazeWidth, mode.mazeHeight, fill="black", outline = "white", width = 1)
         
-        for cell in range(len(mode.grids)):   
-            mode.grids[cell].drawCell(canvas)
+        if (len(mode.stack) == 0):
+            for cell in range(len(mode.grids)):   
+                mode.grids[cell].drawCell(canvas)
         
-        for i in range(len(mode.roomCells)):
-            row, col = mode.roomCells[i][0], mode.roomCells[i][1]
-            mode.drawRoomCell(canvas, row, col, "room")
+            for i in range(len(mode.roomCells)):
+                row, col = mode.roomCells[i][0], mode.roomCells[i][1]
+                mode.drawRoomCell(canvas, row, col, "room")
 
-        mode.currentCell.visited = True
-        # mode.currentCell.drawCurrentCell(canvas)  
+            mode.currentCell.visited = True
+            # mode.currentCell.drawCurrentCell(canvas)  
+            mode.drawRoomCell(canvas, mode.pY, mode.pX, "player")
+        else:
+            mode.displayText(canvas, "LOADING MAZE...", (mode.height/2, mode.height/2))
 
         next = mode.currentCell.checkNeighbors()
         if (next is not None):
@@ -106,9 +83,10 @@ class MazeMode(Mode):
             mode.removeWall(mode.currentCell, next)
             mode.currentCell = next
         elif (len(mode.stack) > 0):
-            mode.currentCell = mode.stack.pop()
+            mode.currentCell = mode.stack.pop()    
         
-        mode.drawRoomCell(canvas, mode.pY, mode.pX, "player")
+        if mode.drawRoom:
+            mode.room.drawViewport(canvas, [(0, 0), (400, 400)])
     
     def drawRoomCell(mode, canvas, row, col, drawMode):
         x1, y1, x2, y2 = col * mode.gridSize, row * mode.gridSize, (col + 1) * mode.gridSize, (row + 1) * mode.gridSize
@@ -123,6 +101,9 @@ class MazeMode(Mode):
         playerCellWalls = mode.grids[col + row * mode.cols].walls
         return playerCellWalls[side]
 
+    def checkIfEnterRoom(mode, playerPos, roomPoses):
+        return playerPos in roomPoses
+    
     def keyPressed(mode, event):
         if (event.key == "r"):
             mode.appStarted()
@@ -138,9 +119,12 @@ class MazeMode(Mode):
         elif (event.key == "Left"):
             if (not mode.getPlayerCell(mode.pX, mode.pY, 3)):
                 mode.pX -= 1    
-
-        # elif (event.key == "z"):
-        #     print(mode.answer == "hi")
+        elif (event.key == "Enter"):
+            enterRoom = mode.checkIfEnterRoom((mode.pY, mode.pX), mode.roomCells)
+            if enterRoom:
+                print(enterRoom, mode.roomCells.index((mode.pY, mode.pX)))
+                mode.drawRoom = True
+                
 
 class Cell(MazeMode):
     def __init__(self, col, row, cols, rows, grids, gridSize):
@@ -207,17 +191,22 @@ class Cell(MazeMode):
     def drawCurrentCell(self, canvas):
         canvas.create_rectangle(self.x1, self.y1, self.x2, self.y2, fill = "yellow", width = 0)
 
+class RoomMode(MazeMode):  
+    def __init__(self, idx):
+        # scene view settings
+        self.idx = idx
+    
+    def drawViewport(self, canvas, pos):
+        canvas.create_rectangle(pos[0][0], pos[0][1],
+                                pos[1][0], pos[1][1], 
+                                fill = 'blue', width = 0)  
+    
+
 class TermProject(ModalApp):
     def appStarted(app):
-        app.setSize(800, 600)
-        app._title = "maze"
-        app.updateTitle()
+        
         app.mazeMode = MazeMode()
         app.setActiveMode(app.mazeMode)
-        # app.timerDelay = 50
+        app.timerDelay = 50
 
-
-        
-app = TermProject()
-# mainloop()
-# app = TermProject(width=800, height=600)
+app = TermProject(width=800, height=600)
