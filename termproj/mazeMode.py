@@ -4,6 +4,7 @@ module_manager.review()
 import math, copy, random
 # Code from: https://www.cs.cmu.edu/~112/notes/notes-animations-part1.html
 from cmu_112_graphics import *
+import tempdata as td
 
 def rgbString(r, g, b):
     return f'#{r:02x}{g:02x}{b:02x}'
@@ -127,6 +128,8 @@ class MazeMode(Mode):
             if (not mode.getPlayerCell(mode.pX, mode.pY, "left")):
                 mode.pX -= 1    
         elif (event.key == "Enter"):
+            # td.r1[0]["status"] = True
+            # print(td.r1[0])
             enterRoom = mode.checkIfEnterRoom((mode.pY, mode.pX), mode.roomCells)
             if enterRoom:
                 print(enterRoom, mode.roomCells.index((mode.pY, mode.pX)))

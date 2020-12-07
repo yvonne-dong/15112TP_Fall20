@@ -8,6 +8,8 @@ import math, copy, random
 # Code from: https://www.cs.cmu.edu/~112/notes/notes-animations-part1.html
 from cmu_112_graphics import *
 
+# external file for storing room properties
+import properties as prop
 #################################################
 # Helper functions from 112 website:
 # https://www.cs.cmu.edu/~112/notes/notes-graphics.html#customColors
@@ -79,14 +81,17 @@ class MazeMode(Mode):
         mode.roomLen = 4
         mode.roomCells = []
         mode.rooms = []
+        mode.disableMazeKeys = False
+        mode.currentSide = 0
 
         mode.pX, mode.pY = 0, 0
 
         mode.grids = []
         mode.stack = []
         for i in range(mode.roomLen):
-            rcX, rcY = math.floor(random.randrange(0, mode.cols)), math.floor(random.randrange(0, mode.rows))
+            rcX, rcY = math.floor(random.randrange(1, mode.cols)), math.floor(random.randrange(0, mode.rows))
             mode.roomCells.append((rcX, rcY))
+            # *** setting up individual room bg color
             r = math.floor(random.randrange(0, 255))
             g = math.floor(random.randrange(0, 100))
             b = math.floor(random.randrange(0, 200))
@@ -132,8 +137,8 @@ class MazeMode(Mode):
                 
         for r in mode.rooms:
             if r.displayRoom:
-                r.drawViewport(canvas, r.viewPortPos)
-                # r.drawViewport(canvas, [(0, 0), (400, 400)])   
+                r.drawViewport(canvas, r.viewPortPos, mode.currentSide)
+                r.drawTextdisplay(canvas, r.textDisplayPos, r.textDisplaySize, r.idx, mode.currentSide)
     
     def removeWall(mode, current, next):
         dcol = current.col - next.col
@@ -173,26 +178,43 @@ class MazeMode(Mode):
         return playerPos in roomPoses
     
     def keyPressed(mode, event):
-        if (event.key == "r"):
-            mode.appStarted()
-        elif (event.key == "Up"):
-            if (not mode.getPlayerCell(mode.pX, mode.pY, "top")):
-                mode.pY -= 1
-        elif (event.key == "Right"):
-            if (not mode.getPlayerCell(mode.pX, mode.pY, "right")):
-                mode.pX += 1
-        elif (event.key == "Down"):
-            if (not mode.getPlayerCell(mode.pX, mode.pY, "bottom")):
-                mode.pY += 1
-        elif (event.key == "Left"):
-            if (not mode.getPlayerCell(mode.pX, mode.pY, "left")):
-                mode.pX -= 1    
-        elif (event.key == "Enter"):
+        if (event.key == "Enter"):
             enterRoom = mode.checkIfEnterRoom((mode.pY, mode.pX), mode.roomCells)
             if enterRoom:
-                # print(enterRoom, mode.roomCells.index((mode.pY, mode.pX)))
                 roomId = mode.roomCells.index((mode.pY, mode.pX))
+                mode.disableMazeKeys = not mode.disableMazeKeys
                 mode.rooms[roomId].displayRoom = not mode.rooms[roomId].displayRoom
+        if (not mode.disableMazeKeys):
+            if (event.key == "r"):
+                mode.appStarted()
+            elif (event.key == "Up"):
+                if (not mode.getPlayerCell(mode.pX, mode.pY, "top")):
+                    mode.pY -= 1
+            elif (event.key == "Right"):
+                if (not mode.getPlayerCell(mode.pX, mode.pY, "right")):
+                    mode.pX += 1
+            elif (event.key == "Down"):
+                if (not mode.getPlayerCell(mode.pX, mode.pY, "bottom")):
+                    mode.pY += 1
+            elif (event.key == "Left"):
+                if (not mode.getPlayerCell(mode.pX, mode.pY, "left")):
+                    mode.pX -= 1  
+        else:
+            # "front", "right", "back", "left", "top", "bottom"
+            if (event.key == "1"):
+                mode.currentSide = 0
+            elif (event.key == "2"):
+                mode.currentSide = 1
+            elif (event.key == "3"):
+                mode.currentSide = 2
+            elif (event.key == "4"):
+                mode.currentSide = 3
+            elif (event.key == "5"):
+                mode.currentSide = 4
+            elif (event.key == "6"):
+                mode.currentSide = 5 
+        
+        
                 
 class Cell(MazeMode):
     def __init__(self, col, row, cols, rows, grids, gridSize):
@@ -287,191 +309,9 @@ class RoomMode(MazeMode):
         self.roomSides = ["front", "right", "back", "left", "top", "bottom"]
         self.currentSide = 0
 
-        # *** ideally move to external file
-        # list of all items in the room
-        self.r1=[
-                    {
-                        "name": "bacon",
-                        "interaction": "game",
-                        "status": False,
-                        "require": None,
-                        "timed": True
-                    },
-                    {
-                        "name": "flour",
-                        "interaction": "add",
-                        "status": False,
-                        "require": None,
-                        "timed": False
-                    },
-                    {
-                        "name": "raw eggs",
-                        "interaction": "add",
-                        "status": False,
-                        "require": None,
-                        "timed": False
-                    },
-                    {
-                        "name": "G",
-                        "interaction": "see",
-                        "status": False,
-                        "require": None,
-                        "timed": True
-                    },
-                    {
-                        "name": "Em",
-                        "interaction": "see",
-                        "status": False,
-                        "require": None,
-                        "timed": True
-                    },
-                    {
-                        "name": "C",
-                        "interaction": "see",
-                        "status": False,
-                        "require": None,
-                        "timed": True
-                    },
-                    {
-                        "name": "D7",
-                        "interaction": "see",
-                        "status": False,
-                        "require": None,
-                        "timed": True
-                    },
-                    {
-                        "name": "pan",
-                        "interaction": "combine",
-                        "status": False,
-                        "require": ["flour", "raw eggs"],
-                        "timed": False
-                    }
-                ]
-        self.r2 =[
-                    {
-                        "name": "cake mix",
-                        "interaction": "password",
-                        "status": False,
-                        "require": None,
-                        "timed": False
-                    },
-                    {
-                        "name": "chocolate frosting",
-                        "interaction": "add",
-                        "status": False,
-                        "require": None,
-                        "timed": False
-                    },
-                    {
-                        "name": "vanilla frosting",
-                        "interaction": "add",
-                        "status": False,
-                        "require": None,
-                        "timed": False
-                    },
-                    {
-                        "name": "shelve",
-                        "interaction": "remove",
-                        "status": False,
-                        "require": None,
-                        "timed": False
-                    }
-                ]
-        self.r3 =[
-                    {
-                        "name": "cow",
-                        "interaction": "add",
-                        "status": False,
-                        "require": None,
-                        "timed": False
-                    },
-                    {
-                        "name": "centrifuge",
-                        "interaction": "combine",
-                        "status": False,
-                        "require": ["cow"],
-                        "timed": False
-                    },
-                    {
-                        "name": "lettuce",
-                        "interaction": "game",
-                        "status": False,
-                        "require": None,
-                        "timed": False
-                    },
-                    {
-                        "name": "jellyfish",
-                        "interaction": "add",
-                        "status": False,
-                        "require": None,
-                        "timed": False
-                    },
-                    {
-                        "name": "red balloon",
-                        "interaction": "add",
-                        "status": False,
-                        "require": None,
-                        "timed": False
-                    },
-                    {
-                        "name": "mixer",
-                        "interaction": "combine",
-                        "status": False,
-                        "require": ["jellyfish", "red balloon"],
-                        "timed": False
-                    },
-                    {
-                        "name": "bread",
-                        "interaction": "password",
-                        "status": False,
-                        "require": None,
-                        "timed": False
-                    }
-                ]
-        self.r4 =[
-                    {
-                        "name": "apple",
-                        "interaction": "add",
-                        "status": False,
-                        "require": None,
-                        "timed": False
-                    },
-                    {
-                        "name": "marker",
-                        "interaction": "add",
-                        "status": False,
-                        "require": None,
-                        "timed": False
-                    },
-                    {
-                        "name": "book",
-                        "interaction": "add",
-                        "status": False,
-                        "require": None,
-                        "timed": False
-                    },
-                    {
-                        "name": "bed",
-                        "interaction": "remove",
-                        "status": False,
-                        "require": None,
-                        "timed": False
-                    },
-                    {
-                        "name": "bass",
-                        "interaction": "add",
-                        "status": False,
-                        "require": None,
-                        "timed": False
-                    }
-                ]
-        self.r1AllItems = {"bacon", "pancakes", "eggs"}
-        self.r2AllItems = {"cake", "chocolate frosting", "vanilla frosting"}
-        self.r3AllItems = {"cheese", "lettuce", "tomato", "bread"}
-        self.r4AllItems = {"apple", "marker", "book", "bass"}
-
-        self.roomAllItems = [self.r1AllItems, self.r2AllItems, self.r3AllItems, self.r4AllItems]
-        self.roomProperties = [self.r1, self.r2, self.r3, self.r4]
+        # get properties stored in properties.py
+        self.roomAllItems = [prop.r1AllItems, prop.r2AllItems, prop.r3AllItems, prop.r4AllItems]
+        self.roomProperties = [prop.r1, prop.r2, prop.r3, prop.r4]
         
         # check collected items
         self.items = []
@@ -491,23 +331,18 @@ class RoomMode(MazeMode):
         
         # for answering password
         self.userAnswer = ""
-    
-        self.r1Answer = "G,Em,C,D7"
-        # *** change for other password based games
-        # *** r2, r3 random riddles, format: [{"riddle":"", "answer": ""}]
-        self.riddles = []
-        self.r2Answer = "test"
-        self.r3Answer = "test"
+        # change based on which room player is in
+        self.correctAnswer = ""
         
         # saved text for text editor
         self.previousText = ""
 
-    def drawTextdisplay(self, canvas, pos, size, idx):
+    def drawTextdisplay(self, canvas, pos, size, idx, currentSide):
         canvas.create_rectangle(pos[0][0], pos[0][1],
                                 pos[1][0], pos[1][1], 
-                                fill = 'gold')
+                                fill = 'gold', width = 0)
         textPos = (pos[0][0] + size[0]/2, pos[0][1] + size[1]/2)
-        text = 'FIND THE ITEMS'
+        text = f'FIND THE ITEMS FOR ROOM {self.idx}'
         verify = set(self.collectedItems)
         if verify == self.roomAllItems[idx]:
             text = 'YOU HAVE COLLECTED ALL ITEMS, PRESS M FOR MAIN MENU'
@@ -515,13 +350,18 @@ class RoomMode(MazeMode):
                           text = text, font = self.font, fill = 'white')
         roomsideTextPos = (pos[0][0] + size[0]/20, pos[0][1] + size[0]/20)
         canvas.create_text(roomsideTextPos[0], roomsideTextPos[1], 
-                          text = self.roomSides[self.currentSide], 
+                          text = self.roomSides[currentSide], 
                           font = self.font, fill = 'white', anchor='w')
     
-    def drawViewport(self, canvas, pos):
+    def drawViewport(self, canvas, pos, currentSide):
         canvas.create_rectangle(pos[0][0], pos[0][1],
                                 pos[1][0], pos[1][1], 
                                 fill = self.roomColor, width = 0)  
+        for i in range(len(self.items)):
+            # draw the item at its room side
+            if (currentSide == self.items[i].sideIdx) and (self.items[i].status == False):
+                self.items[i].displayItem(canvas)
+
 
     # *** redo text editor...
     def displayTextEditor(self, previousText):
@@ -532,19 +372,7 @@ class RoomMode(MazeMode):
     # check if room display is on or not
  
     def keyPressed(mode, event):
-        # "front", "right", "back", "left", "top", "bottom"
-        if (event.key == "1"):
-            mode.currentSide = 0
-        elif (event.key == "2"):
-            mode.currentSide = 1
-        elif (event.key == "3"):
-            mode.currentSide = 2
-        elif (event.key == "4"):
-            mode.currentSide = 3
-        elif (event.key == "5"):
-            mode.currentSide = 4
-        elif (event.key == "6"):
-            mode.currentSide = 5
+        
         
         # Go back to main menu
         elif (event.key == "m"):
@@ -587,10 +415,7 @@ class RoomMode(MazeMode):
         mode.drawTextdisplay(canvas, mode.textDisplayPos, mode.textDisplaySize)
         
         # draw items in room
-        for i in range(len(mode.items)):
-            # draw the item at its room side
-            if (mode.currentSide == mode.items[i].sideIdx) and (mode.items[i].status == False):
-                mode.items[i].displayItem(canvas)
+        
     '''
 
 class item(RoomMode):
