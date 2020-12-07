@@ -326,13 +326,6 @@ class RoomMode(MazeMode):
                         "timed": False
                     },
                     {
-                        "name": "tomato",
-                        "interaction": "game",
-                        "status": False,
-                        "require": None,
-                        "timed": False
-                    },
-                    {
                         "name": "jellyfish",
                         "interaction": "add",
                         "status": False,
@@ -344,6 +337,13 @@ class RoomMode(MazeMode):
                         "interaction": "add",
                         "status": False,
                         "require": None,
+                        "timed": False
+                    },
+                    {
+                        "name": "mixer",
+                        "interaction": "combine",
+                        "status": False,
+                        "require": ["jellyfish", "red balloon"],
                         "timed": False
                     },
                     {
@@ -402,6 +402,8 @@ class RoomMode(MazeMode):
             canvas.create_text(self.width/2, self.height/4 + 30 * (i + 1), 
                                text = f'{currentRoom[i]["name"]} - {currentRoom[i]["interaction"]}', font = self.font, fill = 'white')
     
+
+
 class TermProject(ModalApp):
     def appStarted(app):
         
