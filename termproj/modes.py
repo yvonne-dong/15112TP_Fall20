@@ -9,6 +9,7 @@ from cmu_112_graphics import *
 
 # external file for storing room properties
 import properties as prop
+import string
 
 #################################################
 # Term Project
@@ -74,8 +75,19 @@ class MazeMode(Mode):
         mode.roomLen = 4
         
         mode.generateMaze()
-        mode.font = 'Arial 26 bold' 
+        mode.font = 'Arial 16 bold' 
 
+        # init text editor
+        mode.showTextEditor = False
+        mode.previousText = ["|"]
+        mode.editorSize = mode.height * (1/4)
+        mode.editorPos = [mode.width/2, mode.height/2]
+        mode.editorFont = 'Arial 12' 
+
+        #init button
+        mode.editorButtonSize = mode.height/10
+        mode.editorButtonPos = (mode.height/6 - mode.height/10, mode.height * 5/6)
+        
     def generateMaze(mode):
         # initial values
         mode.roomCells = []
@@ -107,8 +119,27 @@ class MazeMode(Mode):
                 cell = Cell(col, row, mode.cols, mode.rows, mode.grids, mode.gridSize)
                 mode.grids.append(cell)
 
-    def displayText(mode, canvas, text, pos):
-        canvas.create_text(pos[0], pos[1], text = text, font = mode.font, fill = 'white')
+    # def displayText(mode, canvas, text, pos):
+    #     canvas.create_text(pos[0], pos[1], text = text, font = mode.font, fill = 'white')
+
+    # *** redo text editor...
+    def displayTextEditor(mode, canvas, previousText):
+        canvas.create_rectangle(mode.editorPos[0], mode.editorPos[1], 
+                                mode.editorPos[0] + mode.editorSize, mode.editorPos[1] + mode.editorSize, 
+                                fill="#fff9d9", width = 0)
+        textStartPos = [mode.editorPos[0] + mode.editorSize * (1/10), mode.editorPos[1] + mode.editorSize * (1/10)]
+        canvas.create_text(textStartPos[0], textStartPos[1], 
+                          text = previousText, font = mode.editorFont, 
+                          fill = 'black', anchor = 'w') 
+        # mode.displayChar(canvas, textStartPos, "H")
+        # if (len(mode.previousText) > 0):
+
+    def displayChar(mode, canvas, pos, c):
+        canvas.create_text(pos[0], pos[1], text = c, font = mode.editorFont, fill = 'black')       
+
+    def drawButton(mode, canvas, pos, size, buttonText):
+        canvas.create_rectangle(pos[0], pos[1], pos[0]+size, pos[1]+size, outline = "white", width = 3)
+        canvas.create_text(pos[0]+size/2, pos[1]+size/2, text = buttonText, font = mode.font, fill = "white")
 
     def redrawAll(mode, canvas):
         canvas.create_rectangle(0, 0, mode.width, mode.height, fill="black")
@@ -137,6 +168,10 @@ class MazeMode(Mode):
             if r.displayRoom:
                 r.drawViewport(canvas, r.viewPortPos, mode.currentSide)
                 r.drawTextdisplay(canvas, r.textDisplayPos, r.textDisplaySize, r.idx, mode.currentSide, mode.hint)
+                mode.drawButton(canvas, mode.editorButtonPos, mode.editorButtonSize, "NOTE")
+
+                if mode.showTextEditor:
+                    mode.displayTextEditor(canvas, mode.previousText)
     
     def removeWall(mode, current, next):
         dcol = current.col - next.col
@@ -210,22 +245,47 @@ class MazeMode(Mode):
                 # mode.appStarted()
 
         if (mode.disableMazeKeys):
-            # "front", "right", "back", "left", "top", "bottom"
-            if (event.key == "1"):
-                mode.currentSide = 0
-            elif (event.key == "2"):
-                mode.currentSide = 1
-            elif (event.key == "3"):
-                mode.currentSide = 2
-            elif (event.key == "4"):
-                mode.currentSide = 3
-            elif (event.key == "5"):
-                mode.currentSide = 4
-            elif (event.key == "6"):
-                mode.currentSide = 5 
-        
+            if (not mode.showTextEditor):
+                # "front", "right", "back", "left", "top", "bottom"
+                if (event.key == "1"):
+                    mode.currentSide = 0
+                elif (event.key == "2"):
+                    mode.currentSide = 1
+                elif (event.key == "3"):
+                    mode.currentSide = 2
+                elif (event.key == "4"):
+                    mode.currentSide = 3
+                elif (event.key == "5"):
+                    mode.currentSide = 4
+                elif (event.key == "6"):
+                    mode.currentSide = 5 
+            else:
+                if (event.key in string.printable):
+                    mode.previousText.insert(len(mode.previousText)-1, event.key)
+                    # mode.previousText.append(event.key)
+            #     # toggle on/off text editor
+            #     if (event.key == "n"):
+            #         mode.showTextEditor = not mode.showTextEditor
+
+    def click(mode, mX, mY, pos):
+        x0, y0 = pos
+        x1, y1 = pos[0] + mode.editorSize, pos[1] + mode.editorSize
+        if (x0 < mX < x1) and (y0 < mY < y1):
+            return True   
+
+    def mouseDragged(mode, event):
+        if (mode.disableMazeKeys and mode.displayTextEditor):
+            if (mode.click(event.x, event.y, mode.editorPos)):
+                mode.editorPos = [event.x - mode.editorSize/2, event.y - mode.editorSize/2]
+
     def mousePressed(mode, event):
         if (mode.disableMazeKeys):
+            if mode.click(event.x, event.y, mode.editorButtonPos):
+                mode.editorPos = [mode.width/2, mode.height/2]
+                mode.showTextEditor = not mode.showTextEditor
+
+        if (mode.disableMazeKeys and not mode.displayTextEditor):
+            mode.editorPos = [mode.width/2, mode.height/2]
             cr = mode.rooms[mode.currentRoomIdx]
             for i in range(len(cr.items)):
                 if (mode.currentSide == cr.items[i].sideIdx):
@@ -378,9 +438,6 @@ class RoomMode(MazeMode):
         if (self.idx == 0):
             self.question = prop.r1Question
             self.correctAnswer = prop.r1Answer
-        
-        # saved text for text editor
-        self.previousText = ""
 
     def drawTextdisplay(self, canvas, pos, size, idx, currentSide, hint):
         canvas.create_rectangle(pos[0][0], pos[0][1],
@@ -413,9 +470,7 @@ class RoomMode(MazeMode):
             if (currentSide == self.items[i].sideIdx) and (self.items[i].status == False):
                 self.items[i].displayItem(canvas)
 
-    # *** redo text editor...
-    def displayTextEditor(self, previousText):
-        print("call notepad: need more work...")
+    
 
 class item(RoomMode):
     def __init__(self, properties, pos, size, sideIdx):
@@ -471,18 +526,13 @@ class item(RoomMode):
 class HelpMode(Mode):
     def appStarted(mode):
         mode.topMargin = 350
-        mode.font = 'Arial 26 bold'
-    
-    def displayText(mode, canvas, text, pos):
-        canvas.create_text(pos[0], pos[1], text = text, font = mode.font, fill = 'white')
+        mode.font = 'Arial 26 bold'        
     
     def redrawAll(mode, canvas):
         canvas.create_rectangle(0, 0, mode.width, mode.height, fill = 'blue')
-        mode.displayText(canvas, 'HELP', (mode.width/2, mode.topMargin * 1/3))
-        mode.displayText(canvas, '(SOME INSTRUCTIONS & BG STORY)', 
-                        (mode.width/2, mode.topMargin * 2/3))
-        mode.displayText(canvas, 'PRESS M FOR MENU', 
-                        (mode.width/2, mode.topMargin))
+        canvas.create_text(mode.width/2, mode.topMargin * 1/3, text = 'HELP', font = mode.font, fill = 'white')
+        canvas.create_text(mode.width/2, mode.topMargin * 2/3, text = '(SOME INSTRUCTIONS & BG STORY)', font = mode.font, fill = 'white')
+        canvas.create_text(mode.width/2, mode.topMargin, text = 'PRESS M FOR MENU', font = mode.font, fill = 'white')
     
     def keyPressed(mode, event):
         if (event.key == "m"):
