@@ -4,19 +4,11 @@ module_manager.review()
 
 import math, copy, random
 
-
 # Code from: https://www.cs.cmu.edu/~112/notes/notes-animations-part1.html
 from cmu_112_graphics import *
 
 # external file for storing room properties
 import properties as prop
-#################################################
-# Helper functions from 112 website:
-# https://www.cs.cmu.edu/~112/notes/notes-graphics.html#customColors
-#################################################
-
-def rgbString(r, g, b):
-    return f'#{r:02x}{g:02x}{b:02x}'
 
 #################################################
 # Term Project
@@ -56,7 +48,8 @@ class MainMenuMode(Mode):
                 mode.selectId = len(mode.textBoxText)-1
         elif (event.key == "Enter"):
             if mode.selectId == 0:
-                mode.app.setActiveMode(mode.app.roomMode)
+                mode.app.setActiveMode(mode.app.mazeMode)
+                mode.app.mazeMode.appStarted()
             elif mode.selectId == 2:
                 mode.app.setActiveMode(mode.app.helpMode)
 
@@ -79,29 +72,34 @@ class MazeMode(Mode):
         mode.cols = math.floor(mode.mazeWidth/mode.gridSize) # width/gs
         mode.rows = math.floor(mode.mazeHeight/mode.gridSize) # height/gs
         mode.roomLen = 4
+        
+        mode.generateMaze()
+        mode.font = 'Arial 26 bold' 
+
+    def generateMaze(mode):
+        # initial values
         mode.roomCells = []
         mode.rooms = []
-        mode.disableMazeKeys = False
-        mode.currentSide = 0
-
-        mode.pX, mode.pY = 0, 0
-
         mode.grids = []
         mode.stack = []
+        mode.currentCell = 0
+
+        mode.pX, mode.pY = 0, 0
+        mode.disableMazeKeys = False
+        mode.currentRoomIdx = 0
+        mode.currentSide = 0
+        mode.roomGameMode = False
+        mode.hint = ""
+
         for i in range(mode.roomLen):
             rcX, rcY = math.floor(random.randrange(1, mode.cols)), math.floor(random.randrange(0, mode.rows))
             mode.roomCells.append((rcX, rcY))
-            # *** setting up individual room bg color
-            r = math.floor(random.randrange(0, 255))
-            g = math.floor(random.randrange(0, 100))
-            b = math.floor(random.randrange(0, 200))
-            mode.rooms.append(RoomMode(i, rgbString(r, g, b), mode.width, mode.height))
+            mode.rooms.append(RoomMode(i, mode.width, mode.height))
 
         mode.drawMaze()
         mode.currentCell = mode.grids[0]
         mode.currentCell.visited = True
-        mode.stack.append(mode.currentCell)
-        mode.font = 'Arial 26 bold' 
+        mode.stack.append(mode.currentCell)    
 
     def drawMaze(mode):
         for row in range(mode.rows):
@@ -138,7 +136,7 @@ class MazeMode(Mode):
         for r in mode.rooms:
             if r.displayRoom:
                 r.drawViewport(canvas, r.viewPortPos, mode.currentSide)
-                r.drawTextdisplay(canvas, r.textDisplayPos, r.textDisplaySize, r.idx, mode.currentSide)
+                r.drawTextdisplay(canvas, r.textDisplayPos, r.textDisplaySize, r.idx, mode.currentSide, mode.hint)
     
     def removeWall(mode, current, next):
         dcol = current.col - next.col
@@ -181,25 +179,37 @@ class MazeMode(Mode):
         if (event.key == "Enter"):
             enterRoom = mode.checkIfEnterRoom((mode.pY, mode.pX), mode.roomCells)
             if enterRoom:
-                roomId = mode.roomCells.index((mode.pY, mode.pX))
+                mode.currentSide = 0
+                mode.currentRoomIdx = mode.roomCells.index((mode.pY, mode.pX))
                 mode.disableMazeKeys = not mode.disableMazeKeys
-                mode.rooms[roomId].displayRoom = not mode.rooms[roomId].displayRoom
-        if (not mode.disableMazeKeys):
-            if (event.key == "r"):
-                mode.appStarted()
-            elif (event.key == "Up"):
+                mode.rooms[mode.currentRoomIdx].displayRoom = not mode.rooms[mode.currentRoomIdx].displayRoom
+        
+        elif (event.key == "r"):
+            if (not mode.disableMazeKeys):
+                mode.generateMaze()
+        if (event.key == "Up"):
+            if (not mode.disableMazeKeys):
                 if (not mode.getPlayerCell(mode.pX, mode.pY, "top")):
                     mode.pY -= 1
-            elif (event.key == "Right"):
+        elif (event.key == "Right"):
+            if (not mode.disableMazeKeys):
                 if (not mode.getPlayerCell(mode.pX, mode.pY, "right")):
                     mode.pX += 1
-            elif (event.key == "Down"):
+        elif (event.key == "Down"):
+            if (not mode.disableMazeKeys):
                 if (not mode.getPlayerCell(mode.pX, mode.pY, "bottom")):
                     mode.pY += 1
-            elif (event.key == "Left"):
+        elif (event.key == "Left"):
+            if (not mode.disableMazeKeys):
                 if (not mode.getPlayerCell(mode.pX, mode.pY, "left")):
                     mode.pX -= 1  
-        else:
+        # Go back to main menu
+        elif (event.key == "m"):
+            if (not mode.disableMazeKeys):
+                mode.app.setActiveMode(mode.app.mainMenuMode)
+                # mode.appStarted()
+
+        if (mode.disableMazeKeys):
             # "front", "right", "back", "left", "top", "bottom"
             if (event.key == "1"):
                 mode.currentSide = 0
@@ -214,8 +224,38 @@ class MazeMode(Mode):
             elif (event.key == "6"):
                 mode.currentSide = 5 
         
+    def mousePressed(mode, event):
+        if (mode.disableMazeKeys):
+            cr = mode.rooms[mode.currentRoomIdx]
+            for i in range(len(cr.items)):
+                if (mode.currentSide == cr.items[i].sideIdx):
+                    if (cr.items[i].clickOnItem(event.x, event.y, cr.collectedItems) != None) and (cr.items[i].status == False):
+                        if (cr.items[i].interaction == "add"):
+                            mode.hint = f'YOU COLLECTED {cr.items[i].name}'
+                            cr.collectedItems.append(cr.items[i].name)
+                            cr.items[i].status = True
+                        elif (cr.items[i].interaction == "remove"):
+                            mode.hint = f"YOU REMOVED {cr.items[i].name}"
+                            cr.items[i].status = True
+                        elif (cr.items[i].interaction == "see"):
+                            mode.hint = f'YOU SAW {cr.items[i].name}'
+                        elif (cr.items[i].interaction == "combine"):
+                            mode.hint = "COMBINED! (***IN PROGRESS)"
+                            # *** change based on room
+                            # if (mode.items[i].reachRequire):
+                            #     mode.collectedItems.remove("raw eggs")
+                            #     mode.collectedItems.remove("flour")
+                            #     mode.collectedItems.extend(["eggs","pancakes"])
+                            #     mode.items[i].status = True
+                            #     print("collected combined!")
+                            # else:
+                            #     print("collect requirements")
+                        elif (cr.items[i].interaction == "password"):
+                            mode.hint = "ANSWER THIS PUZZLE"
+                            cr.items[i].passwordEntry(cr.userAnswer, cr.question, cr.correctAnswer, cr.addItem, cr.collectedItems, mode.hint)
+                    else:
+                        mode.hint = "TRY SOMEWHERE ELSE"
         
-                
 class Cell(MazeMode):
     def __init__(self, col, row, cols, rows, grids, gridSize):
         self.col = col
@@ -236,7 +276,6 @@ class Cell(MazeMode):
                     }
         self.visited = False
         
-    
     def checkNeighbors(self):
         # create a list to store all possible neighbors
         neighbors = []
@@ -289,14 +328,14 @@ class Cell(MazeMode):
         canvas.create_rectangle(self.x1, self.y1, self.x2, self.y2, fill = "yellow", width = 0)
 
 class RoomMode(MazeMode): 
-    def __init__(self, idx, roomColor, w, h):
+    def __init__(self, idx, w, h):
         # width, height of main window
         self.width = w
         self.height = h
 
         # scene view settings
         self.idx = idx
-        self.roomColor = roomColor
+        self.roomColor = prop.roomColors[self.idx]
         self.displayRoom = False
         self.viewPortPos = [(0, 0), (self.width, self.height * (2/3))]
         self.textDisplayPos = [(0, self.height * (2/3)), (self.width, self.height)]
@@ -304,20 +343,16 @@ class RoomMode(MazeMode):
         self.textDisplaySize = [self.width, self.height * (1/3)]
         
         self.font = 'Arial 18 bold'
-
+        self.roomText = ''
         # list of each side of the room, set current facing side to "front"
-        self.roomSides = ["front", "right", "back", "left", "top", "bottom"]
+        self.roomSides = ["FRONT", "RIGHT", "BACK", "LEFT", "TOP", "BOTTOM"]
         self.currentSide = 0
-
-        # get properties stored in properties.py
-        self.roomAllItems = [prop.r1AllItems, prop.r2AllItems, prop.r3AllItems, prop.r4AllItems]
-        self.roomProperties = [prop.r1, prop.r2, prop.r3, prop.r4]
         
         # check collected items
         self.items = []
         self.collectedItems = []
         
-        for i in range(len(self.roomProperties[self.idx])):
+        for i in range(len(prop.roomProperties[self.idx])):
             # *** change based on asset image size
             size = 80
             # *** change to random no overlap 
@@ -325,7 +360,7 @@ class RoomMode(MazeMode):
             y1 = random.randrange(size * 2, self.height * (2/3) - size * 2)
             # set which side of the room the object is on
             sideIdx = math.floor(random.randrange(0, 6))
-            itm = item(self.roomProperties[self.idx][i], (x1, y1), size, sideIdx)
+            itm = item(prop.roomProperties[self.idx][i], (x1, y1), size, sideIdx)
             self.items.append(itm)
         
         
@@ -333,90 +368,54 @@ class RoomMode(MazeMode):
         self.userAnswer = ""
         # change based on which room player is in
         self.correctAnswer = ""
+        self.question = ""
+        self.addItem = prop.riddleAddItem[self.idx]
+        if (self.idx == 1 or self.idx == 3):
+            randIdx = math.floor(random.randrange(0, 6))
+            self.question = prop.riddles[randIdx]["Q"]
+            self.correctAnswer = prop.riddles[randIdx]["A"]
+
+        if (self.idx == 0):
+            self.question = prop.r1Question
+            self.correctAnswer = prop.r1Answer
         
         # saved text for text editor
         self.previousText = ""
 
-    def drawTextdisplay(self, canvas, pos, size, idx, currentSide):
+    def drawTextdisplay(self, canvas, pos, size, idx, currentSide, hint):
         canvas.create_rectangle(pos[0][0], pos[0][1],
                                 pos[1][0], pos[1][1], 
                                 fill = 'gold', width = 0)
         textPos = (pos[0][0] + size[0]/2, pos[0][1] + size[1]/2)
-        text = f'FIND THE ITEMS FOR ROOM {self.idx}'
+        if len(hint) > 0:
+            self.roomText = hint
+        else:
+            self.roomText = f'FIND THE ITEMS FOR {prop.roomNames[self.idx]}'
         verify = set(self.collectedItems)
-        if verify == self.roomAllItems[idx]:
-            text = 'YOU HAVE COLLECTED ALL ITEMS, PRESS M FOR MAIN MENU'
+        if verify == prop.roomAllItems[idx]:
+            self.roomText = 'YOU HAVE COLLECTED ALL ITEMS, PRESS M FOR MAIN MENU'
         canvas.create_text(textPos[0], textPos[1], 
-                          text = text, font = self.font, fill = 'white')
+                          text = self.roomText, font = self.font, fill = 'white')
         roomsideTextPos = (pos[0][0] + size[0]/20, pos[0][1] + size[0]/20)
         canvas.create_text(roomsideTextPos[0], roomsideTextPos[1], 
                           text = self.roomSides[currentSide], 
                           font = self.font, fill = 'white', anchor='w')
     
     def drawViewport(self, canvas, pos, currentSide):
+        # display view background
         canvas.create_rectangle(pos[0][0], pos[0][1],
                                 pos[1][0], pos[1][1], 
                                 fill = self.roomColor, width = 0)  
+        
+        # display all items
         for i in range(len(self.items)):
             # draw the item at its room side
             if (currentSide == self.items[i].sideIdx) and (self.items[i].status == False):
                 self.items[i].displayItem(canvas)
 
-
     # *** redo text editor...
     def displayTextEditor(self, previousText):
         print("call notepad: need more work...")
-    
-    '''
-    # *** move to maze mode!!!   
-    # check if room display is on or not
- 
-    def keyPressed(mode, event):
-        
-        
-        # Go back to main menu
-        elif (event.key == "m"):
-            mode.app.setActiveMode(mode.app.mainMenuMode)
-            mode.appStarted()
-        
-        # Call notebook
-        elif (event.key == "n"):
-            mode.displayTextEditor(mode.previousText)
-    '''
-
-    '''
-    def mousePressed(mode, event):
-        for i in range(len(mode.items)):
-            if (mode.currentSide == mode.items[i].sideIdx):
-                if (mode.items[i].clickOnItem(event.x, event.y, mode.collectedItems) != None) and (mode.items[i].status == False):
-                    if (mode.items[i].interaction == "add"):
-                        mode.collectedItems.append(mode.items[i].name)
-                        mode.items[i].status = True
-                        print(f'collected {mode.items[i].name}')
-                    elif (mode.items[i].interaction == "see"):
-                        print(f'see {mode.items[i].name}')
-                    elif (mode.items[i].interaction == "combine"):
-                        if (mode.items[i].reachRequire):
-                            mode.collectedItems.remove("raw eggs")
-                            mode.collectedItems.remove("flour")
-                            mode.collectedItems.extend(["eggs","pancakes"])
-                            mode.items[i].status = True
-                            print("collected combined!")
-                        else:
-                            print("collect requirements")
-                    elif (mode.items[i].interaction == "game"):
-                        mode.items[i].passwordEntry(mode.userAnswer, mode.answer, mode.collectedItems)
-
-    def redrawAll(mode, canvas):
-        # draw viewport
-        mode.drawViewport(canvas, mode.viewPortPos)
-        
-        # draw text display
-        mode.drawTextdisplay(canvas, mode.textDisplayPos, mode.textDisplaySize)
-        
-        # draw items in room
-        
-    '''
 
 class item(RoomMode):
     def __init__(self, properties, pos, size, sideIdx):
@@ -447,11 +446,11 @@ class item(RoomMode):
                     self.reachRequire = True
             return True
     
-    def passwordEntry(self, input, answer, items):
+    def passwordEntry(self, input, question, answer, addItem, items, hint):
         # Code modified from: https://www.geeksforgeeks.org/python-tkinter-entry-widget/
         root = Tk()
-        root.title('text entry')
-        Label(root, text = "Sing the bacon pancake song! (connect with ',')").grid(row = 0)
+        root.title('PUZZLE')
+        Label(root, text = question).grid(row = 0)
 
         textEntry = Entry(root)
         textEntry.grid(row = 1)
@@ -460,13 +459,13 @@ class item(RoomMode):
             input = textEntry.get()
             textEntry.delete(0, 'end')
             root.destroy()
-            if (input == answer):
-                print("Correct!")
-                items.append("bacon")
+            if (input.lower() == answer):
+                hint = f"CORRECT! COLLECTED {addItem.upper()}"
+                items.append(addItem)
             else:
-                print("Wrong : (")
+                hint = "WRONG : ( TRY AGAIN"
 
-        button = Button(root, text = "send", command = reply)
+        button = Button(root, text = "ANSWER", command = reply)
         button.grid(row = 2)
 
 class HelpMode(Mode):
@@ -492,12 +491,10 @@ class HelpMode(Mode):
 class TermProject(ModalApp):
     def appStarted(app):
         app.mainMenuMode = MainMenuMode()
-        # app.roomMode = RoomMode()
         app.helpMode = HelpMode()
         app.mazeMode = MazeMode()
         app.setActiveMode(app.mazeMode)
         # app.setActiveMode(app.mainMenuMode)
-        # app.setActiveMode(app.roomMode)
         app.timerDelay = 50
 
 app = TermProject(width=800, height=600)

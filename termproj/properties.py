@@ -2,7 +2,7 @@
 r1=[
     {
         "name": "bacon",
-        "interaction": "game",
+        "interaction": "password",
         "status": False,
         "require": None,
         "timed": True
@@ -132,7 +132,7 @@ r3 =[
     },
     {
         "name": "bread",
-        "interaction": "password",
+        "interaction": "add",
         "status": False,
         "require": None,
         "timed": False
@@ -148,7 +148,7 @@ r4 =[
     },
     {
         "name": "marker",
-        "interaction": "add",
+        "interaction": "password",
         "status": False,
         "require": None,
         "timed": False
@@ -181,6 +181,11 @@ r2AllItems = {"cake", "chocolate frosting", "vanilla frosting"}
 r3AllItems = {"cheese", "lettuce", "tomato", "bread"}
 r4AllItems = {"apple", "marker", "book", "bass"}
 
+roomAllItems = [r1AllItems, r2AllItems, r3AllItems, r4AllItems]
+roomProperties = [r1, r2, r3, r4]   
+roomNames = ["JAKE", "FINN", "PRINCESS BUBBLEGUM", "MARCELINE"] 
+roomColors = ["#a14b00", "#00a6ff", "#ffb04f", "#696d70"]
+
 riddles =[
             {
                 "Q": "What vegetable is the most fun to be around and the one that everybody wants to hang out with?",
@@ -205,7 +210,10 @@ riddles =[
             {
                 "Q": "What kind of room can you eat?",
                 "A": "mushroom"
-            },
+            }
         ]
 
+r1Question = "Sing the bacon pancake song! (connect with ',')"
 r1Answer = "G,Em,C,D7"
+
+riddleAddItem = ["bacon", "cake", "", "marker"]
