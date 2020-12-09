@@ -1,6 +1,3 @@
-# Code from: https://www.cs.cmu.edu/~112/notes/term-project.html#tp0
-import module_manager
-module_manager.review()
 
 import math, copy, random, time
 
@@ -10,6 +7,7 @@ from cmu_112_graphics import *
 # external file for storing room properties
 import properties as prop
 import string, copy
+from PIL import Image
 
 #################################################
 # Term Project
@@ -25,7 +23,7 @@ class MainMenuMode(Mode):
         mode.selectId = 0
         mode.font = 'Courier 26 bold'
 
-        mode.bg = mode.loadImage('assets/menuBg.png')
+        mode.bg = mode.loadImage(prop.bgURL)
 
     def drawTextBox(mode, canvas, text, pos):
         canvas.create_rectangle(pos[0]-mode.boxW, pos[1]-mode.boxH, 
@@ -66,7 +64,6 @@ class MainMenuMode(Mode):
             mode.drawTextBox(canvas, mode.textBoxText[row], mode.textBoxPos[row])
         mode.selectTextBox(canvas)
 
-# Algorithm (written in English) from: https://en.wikipedia.org/wiki/Maze_generation_algorithm#Iterative_implementation
 class MazeMode(Mode):
     def appStarted(mode):
         mode.mazeWidth = mode.height
@@ -74,16 +71,30 @@ class MazeMode(Mode):
         mode.gridSize = 100
         mode.cols = math.floor(mode.mazeWidth/mode.gridSize) # width/gs
         mode.rows = math.floor(mode.mazeHeight/mode.gridSize) # height/gs
-        mode.roomLen = 4
+        mode.roomLen = 4 # total room numbers    
+        mode.finishedRoom = 0 # record the number of rooms that player has finished
         
         mode.topMargin = 300
-        mode.bg = mode.loadImage('https://64.media.tumblr.com/41b660528784aacedfcb0472ac7091dd/881ddbaec1f23e43-a9/s1280x1920/7ddd9bc1bc4e35674ed06004ff22ad70e3218ee5.png')
-        mode.playerImg = mode.loadImage('https://64.media.tumblr.com/e42df5e052e4111dec860975689f9f7f/881ddbaec1f23e43-1f/s75x75_c1/a06f400c047f5d7f91488af06fe85eac8edd3e90.png')
+        mode.bg = mode.loadImage(prop.bgURL)
+        mode.playerImg = mode.loadImage(prop.playerURL)
         mode.startTime = time.time()
         mode.titleFont = 'Courier 18 bold' 
 
         mode.generateMaze()
-        mode.font = 'Courier 16 bold' 
+        mode.font = 'Courier 14 bold' 
+        mode.itemImgs = []
+
+        for i in range(len(prop.roomProperties)):
+            itemImg = []
+            for j in range(len(prop.roomProperties[i])):
+                url = prop.roomProperties[i][j]["img"]
+                if (len(url) > 0):
+                    img = mode.loadImage(url)
+                    itemImg.append([img, prop.roomProperties[i][j]["position"]])
+                else:
+                    itemImg.append([None, prop.roomProperties[i][j]["position"]])
+            mode.itemImgs.append(itemImg)
+        # print(mode.itemImgs)
 
         # init text editor
         mode.showTextEditor = False
@@ -114,7 +125,8 @@ class MazeMode(Mode):
                            text = "YOU NEED TO GO THROUGH ALL THE GUEST ROOMS,", font = mode.titleFont , fill = '#8ccfff')
         canvas.create_text(mode.width/2, mode.topMargin * 2/3 + mode.topMargin * 2/3, 
                            text = "FULFILL THEIR REQUESTS, AND GET OUT FROM THE MAZE!", font = mode.titleFont , fill = '#8ccfff')
-
+    
+    # Algorithm (written in English) from: https://en.wikipedia.org/wiki/Maze_generation_algorithm#Iterative_implementation
     def generateMaze(mode):
         # initial values
         mode.roomCells = []
@@ -130,11 +142,13 @@ class MazeMode(Mode):
         mode.roomGameMode = False
         mode.hint = ""
 
-        for i in range(mode.roomLen):
-            rcX, rcY = math.floor(random.randrange(1, mode.cols)), math.floor(random.randrange(0, mode.rows))
-            if (rcX, rcY) not in mode.roomCells:
+        counter = 0
+        while len(mode.roomCells) < mode.roomLen:
+            rcX, rcY = math.floor(random.randrange(0, mode.cols)), math.floor(random.randrange(0, mode.rows))
+            if (rcX, rcY) not in mode.roomCells and (rcX, rcY) != (0, 0) and (rcX, rcY) != (mode.cols-1, mode.rows-1):
                 mode.roomCells.append((rcX, rcY))
-            mode.rooms.append(RoomMode(i, mode.width, mode.height))
+                mode.rooms.append(RoomMode(counter, mode.width, mode.height))
+                counter += 1
 
         mode.drawMaze()
         mode.currentCell = mode.grids[0]
@@ -165,21 +179,22 @@ class MazeMode(Mode):
         if (time.time() - mode.startTime < 1):
             mode.drawIntroPage(canvas)
         else:
-            canvas.create_rectangle(0, 0, mode.width, mode.height, fill="#bde3fe")
-            canvas.create_rectangle(0, 0, mode.mazeWidth, mode.mazeHeight, fill="black", outline = "white", width = 1)
+            # when player is inside the maze
+            canvas.create_rectangle(0, 0, mode.width, mode.height, fill="#30a2ff")
+            # canvas.create_rectangle(0, 0, mode.mazeWidth, mode.mazeHeight, fill="black", outline = "white", width = 1)
             
             for cell in range(len(mode.grids)):   
                 mode.grids[cell].drawCell(canvas)
             
             # mark start and end grids
-            mode.drawRoomCell(canvas, 0, 0, "marker")
-            mode.drawRoomCell(canvas, mode.rows-1, mode.cols-1, "marker")
+            mode.drawRoomCell(canvas, 0, 0, "marker", "")
+            mode.drawRoomCell(canvas, mode.rows-1, mode.cols-1, "marker", "")
 
             for i in range(len(mode.roomCells)):
                 row, col = mode.roomCells[i][0], mode.roomCells[i][1]
-                mode.drawRoomCell(canvas, row, col, "room")
+                mode.drawRoomCell(canvas, row, col, "room", f"ROOM {i+1}")
             
-            mode.drawRoomCell(canvas, mode.pY, mode.pX, "player")
+            mode.drawRoomCell(canvas, mode.pY, mode.pX, "player", "")
 
             while (len(mode.stack) > 0):
                 mode.currentCell = mode.stack.pop()    
@@ -190,11 +205,20 @@ class MazeMode(Mode):
                     mode.currentCell = next
                     mode.currentCell.visited = True
                     mode.stack.append(mode.currentCell)
-                    
-            for r in mode.rooms:
-                if r.displayRoom:
-                    r.drawViewport(canvas, r.viewPortPos, mode.currentSide)
-                    r.drawTextdisplay(canvas, r.textDisplayPos, r.textDisplaySize, r.idx, mode.currentSide, mode.hint)
+
+            # draw instructions
+            canvas.create_text(mode.mazeWidth + mode.mazeWidth * 1/6, mode.mazeWidth * 1/5, text = "INTERACTIONS:", font = mode.font, fill = "white")
+            canvas.create_text(mode.mazeWidth + mode.mazeWidth * 1/6, mode.mazeWidth * 1/5 + mode.mazeWidth * 1/10, text = "NAVIGATION: ARROW KEY", font = mode.font, fill = "white")
+            canvas.create_text(mode.mazeWidth + mode.mazeWidth * 1/6, mode.mazeWidth * 1/5 + mode.mazeWidth * 1/5, text = "ENTER: GET INTO ROOM", font = mode.font, fill = "white")
+            # when player is inside the room   
+            for r in range(len(mode.rooms)):
+                if mode.rooms[r].displayRoom:
+                    mode.rooms[r].drawViewport(canvas, mode.rooms[r].viewPortPos, mode.currentSide, mode.itemImgs[r])
+                    # for i in range(len(mode.itemImgs[r])):
+                    #     if (mode.itemImgs[r][i][0] is not None):
+                    #         px, py = mode.itemImgs[r][i][1]
+                    #         canvas.create_image(px, py, image = ImageTk.PhotoImage(mode.itemImgs[r][i][0]))
+                    mode.rooms[r].drawTextdisplay(canvas, mode.rooms[r].textDisplayPos, mode.rooms[r].textDisplaySize, mode.rooms[r].idx, mode.currentSide, mode.hint)
                     mode.drawButton(canvas, mode.editorButtonPos, mode.editorButtonSize, "NOTE")
 
                     if mode.showTextEditor:
@@ -221,11 +245,13 @@ class MazeMode(Mode):
             current.walls["bottom"] = False
             next.walls["top"] = False         
     
-    def drawRoomCell(mode, canvas, row, col, drawMode):
+    def drawRoomCell(mode, canvas, row, col, drawMode, name):
         x1, y1, x2, y2 = col * mode.gridSize, row * mode.gridSize, (col + 1) * mode.gridSize, (row + 1) * mode.gridSize
         if drawMode == "room":
             r = 5
-            canvas.create_rectangle(x1+r, y1+r, x2-r, y2-r, fill = "pink", width = 0)
+            canvas.create_rectangle(x1+r, y1+r, x2-r, y2-r, fill = "#30a2ff", width = 0)
+            canvas.create_text(x1 + mode.gridSize/2, y1 + mode.gridSize/2, 
+                           text = name, font = mode.font , fill = 'white')
         elif drawMode == "player":
             canvas.create_image(x1 + mode.gridSize/2, y1 + mode.gridSize/2, image = ImageTk.PhotoImage(mode.playerImg))
         elif drawMode == "marker":
@@ -247,11 +273,13 @@ class MazeMode(Mode):
                 mode.currentRoomIdx = mode.roomCells.index((mode.pY, mode.pX))
                 mode.disableMazeKeys = not mode.disableMazeKeys
                 mode.rooms[mode.currentRoomIdx].displayRoom = not mode.rooms[mode.currentRoomIdx].displayRoom
-        
-        elif (event.key == "r"):
-            if (not mode.disableMazeKeys):
-                mode.generateMaze()
-        if (event.key == "Up"):
+            elif (mode.pY, mode.pX) == (mode.cols-1, mode.rows-1):
+                if (mode.finishedRoom == 4):
+                    print("final!")
+                else:
+                    print(f"{4-mode.finishedRoom} to go")
+
+        elif (event.key == "Up"):
             if (not mode.disableMazeKeys):
                 if (not mode.getPlayerCell(mode.pX, mode.pY, "top")):
                     mode.pY -= 1
@@ -267,7 +295,8 @@ class MazeMode(Mode):
             if (not mode.disableMazeKeys):
                 if (not mode.getPlayerCell(mode.pX, mode.pY, "left")):
                     mode.pX -= 1  
-        # Go back to main menu
+
+        # *** turn off? Go back to main menu
         elif (event.key == "m"):
             if (not mode.disableMazeKeys):
                 mode.app.setActiveMode(mode.app.mainMenuMode)
@@ -504,11 +533,9 @@ class RoomMode(MazeMode):
         self.collectedItems = []
         
         for i in range(len(prop.roomProperties[self.idx])):
-            # *** change based on asset image size
             size = 80
-            # *** change to random no overlap 
-            x1 = random.randrange(size * 2, self.width - size * 2)
-            y1 = random.randrange(size * 2, self.height * (2/3) - size * 2)
+            x1 = prop.roomProperties[self.idx][i]["position"][0]
+            y1 = prop.roomProperties[self.idx][i]["position"][1]
             # set which side of the room the object is on
             sideIdx = math.floor(random.randrange(0, 6))
             itm = item(prop.roomProperties[self.idx][i], (x1, y1), size, sideIdx)
@@ -548,7 +575,7 @@ class RoomMode(MazeMode):
                           text = self.roomSides[currentSide], 
                           font = self.font, fill = 'white', anchor='w')
     
-    def drawViewport(self, canvas, pos, currentSide):
+    def drawViewport(self, canvas, pos, currentSide, itemsImg):
         # display view background
         canvas.create_rectangle(pos[0][0], pos[0][1],
                                 pos[1][0], pos[1][1], 
@@ -558,7 +585,7 @@ class RoomMode(MazeMode):
         for i in range(len(self.items)):
             # draw the item at its room side
             if (currentSide == self.items[i].sideIdx) and (self.items[i].status == False):
-                self.items[i].displayItem(canvas)   
+                self.items[i].displayItem(canvas, itemsImg[i])   
 
 class item(RoomMode):
     def __init__(self, properties, pos, size, sideIdx):
@@ -573,11 +600,14 @@ class item(RoomMode):
         self.sideIdx = sideIdx
         self.centerPos = pos
     
-    def displayItem(self, canvas):
-        x0, y0 = self.centerPos[0]-self.size/2, self.centerPos[1]-self.size/2
-        x1, y1 = self.centerPos[0]+self.size/2, self.centerPos[1]+self.size/2
-        canvas.create_rectangle(x0, y0, x1, y1, outline='white', width = 1)
-        canvas.create_text(self.centerPos[0], self.centerPos[1], 
+    def displayItem(self, canvas, img):
+        if (img[0] is not None):
+            canvas.create_image(self.centerPos[0], self.centerPos[1], image = ImageTk.PhotoImage(img[0]))
+        else:
+            x0, y0 = self.centerPos[0]-self.size/2, self.centerPos[1]-self.size/2
+            x1, y1 = self.centerPos[0]+self.size/2, self.centerPos[1]+self.size/2
+            canvas.create_rectangle(x0, y0, x1, y1, outline='white', width = 1)
+            canvas.create_text(self.centerPos[0], self.centerPos[1], 
                           text = self.name, font = 'Courier 16 bold', fill = 'white')        
 
     def clickOnItem(self, mX, mY, collected):
