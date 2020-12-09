@@ -18,7 +18,7 @@ class MainMenuMode(Mode):
         mode.boxW, mode.boxH = 150, 25
         mode.topMargin = 350
         mode.gap = 50
-        mode.textBoxText = ['NEW GAME', 'RESUME', 'HELP']
+        mode.textBoxText = ['NEW GAME', 'ABOUT']
         mode.textBoxPos = [(mode.width/2, mode.topMargin + (mode.boxH + mode.gap) * row) for row in range(len(mode.textBoxText))]
         mode.selectId = 0
         mode.font = 'Courier 26 bold'
@@ -51,15 +51,13 @@ class MainMenuMode(Mode):
             if mode.selectId == 0:
                 mode.app.setActiveMode(mode.app.mazeMode)
                 mode.app.mazeMode.appStarted()
-            elif mode.selectId == 2:
+            elif mode.selectId == 1:
                 mode.app.setActiveMode(mode.app.helpMode)
 
     def redrawAll(mode, canvas):
         canvas.create_image(mode.width/2, mode.height/2, image = ImageTk.PhotoImage(mode.bg))
         canvas.create_text(mode.width/2, mode.topMargin * 1/2, 
                            text = "ESCAPE FROM THE PAJAMA PARTY", font = 'Courier 36 bold', fill = 'gold')
-        canvas.create_text(mode.width/2, mode.topMargin * 2/3, 
-                           text = "PRESS UP/DOWN + ENTER TO SELECT OPTION", font = mode.font, fill = 'gold')
         for row in range(len(mode.textBoxText)):
             mode.drawTextBox(canvas, mode.textBoxText[row], mode.textBoxPos[row])
         mode.selectTextBox(canvas)
@@ -84,6 +82,7 @@ class MazeMode(Mode):
         mode.font = 'Courier 14 bold' 
         mode.itemImgs = []
 
+        # load item images
         for i in range(len(prop.roomProperties)):
             itemImg = []
             for j in range(len(prop.roomProperties[i])):
@@ -94,18 +93,24 @@ class MazeMode(Mode):
                 else:
                     itemImg.append([None, prop.roomProperties[i][j]["position"]])
             mode.itemImgs.append(itemImg)
-        # print(mode.itemImgs)
+        
+        # load bg images
+        mode.roomBg = []
+        for bg in prop.roomBg:
+            mode.roomBg.append(mode.loadImage(bg))
 
         # init text editor
         mode.showTextEditor = False
         mode.editorSize = mode.height * (1/4)
-        mode.editorPos = [mode.width/2, mode.height/2]
+        mode.editorPos = [mode.width * 2/3, mode.height * 1/3]
         mode.editorFontSize = 12
         mode.previousText = []
-        mode.mouseIdx = 0
-        mode.previousText.append(noteChar([mode.editorPos[0] + mode.editorSize * 1/10, mode.editorPos[1] + mode.editorSize * (1/10)], 
-                                          mode.editorFontSize, mode.editorSize, "|", "blue"))
+        mode.previousPoses = []
+        mode.highlighted = []
         mode.textStartPos = [mode.editorPos[0] + mode.editorSize * (1/10), mode.editorPos[1] + mode.editorSize * (1/10)]
+        
+        mode.mouseIdx = 0
+        mode.mousePos = mode.textStartPos
 
         #init button
         mode.editorButtonSize = mode.height/10
@@ -161,7 +166,6 @@ class MazeMode(Mode):
                 cell = Cell(col, row, mode.cols, mode.rows, mode.grids, mode.gridSize)
                 mode.grids.append(cell)
 
-    # *** redo text editor...
     def displayTextEditor(mode, canvas, previousText):
         canvas.create_rectangle(mode.editorPos[0], mode.editorPos[1], 
                                 mode.editorPos[0] + mode.editorSize, mode.editorPos[1] + mode.editorSize, 
@@ -173,10 +177,11 @@ class MazeMode(Mode):
     def drawButton(mode, canvas, pos, size, buttonText):
         canvas.create_rectangle(pos[0], pos[1], pos[0]+size, pos[1]+size, outline = "white", width = 3)
         canvas.create_text(pos[0]+size/2, pos[1]+size/2, text = buttonText, font = mode.font, fill = "white")
-
+    
     def redrawAll(mode, canvas):
         # *** change back to 5
-        if (time.time() - mode.startTime < 1):
+        if (time.time() - mode.startTime < 6):
+            # print(time.time() - mode.startTime)
             mode.drawIntroPage(canvas)
         else:
             # when player is inside the maze
@@ -213,17 +218,16 @@ class MazeMode(Mode):
             # when player is inside the room   
             for r in range(len(mode.rooms)):
                 if mode.rooms[r].displayRoom:
-                    mode.rooms[r].drawViewport(canvas, mode.rooms[r].viewPortPos, mode.currentSide, mode.itemImgs[r])
-                    # for i in range(len(mode.itemImgs[r])):
-                    #     if (mode.itemImgs[r][i][0] is not None):
-                    #         px, py = mode.itemImgs[r][i][1]
-                    #         canvas.create_image(px, py, image = ImageTk.PhotoImage(mode.itemImgs[r][i][0]))
+                    mode.rooms[r].drawViewport(canvas, mode.rooms[r].viewPortPos, mode.currentSide, mode.itemImgs[r], mode.roomBg[r])
                     mode.rooms[r].drawTextdisplay(canvas, mode.rooms[r].textDisplayPos, mode.rooms[r].textDisplaySize, mode.rooms[r].idx, mode.currentSide, mode.hint)
                     mode.drawButton(canvas, mode.editorButtonPos, mode.editorButtonSize, "NOTE")
 
+                    mode.passwordhint = f"ANSWER THIS PUZZLE, YOU HAVE {10 - math.floor(time.time() - mode.timer)} secs left"
+
                     if mode.showTextEditor:
                         mode.displayTextEditor(canvas, mode.previousText)
-    
+                        canvas.create_text(mode.mousePos[0], mode.mousePos[1], text = "|", font = mode.font, fill = "blue")
+                
     def removeWall(mode, current, next):
         dcol = current.col - next.col
         # r - l
@@ -269,10 +273,14 @@ class MazeMode(Mode):
         if (event.key == "Enter"):
             enterRoom = mode.checkIfEnterRoom((mode.pY, mode.pX), mode.roomCells)
             if enterRoom:
+                mode.timer = time.time()
                 mode.currentSide = 0
                 mode.currentRoomIdx = mode.roomCells.index((mode.pY, mode.pX))
                 mode.disableMazeKeys = not mode.disableMazeKeys
                 mode.rooms[mode.currentRoomIdx].displayRoom = not mode.rooms[mode.currentRoomIdx].displayRoom
+                
+                mode.previousText = []
+                mode.mousePos = [mode.textStartPos[0], mode.textStartPos[1]]
             elif (mode.pY, mode.pX) == (mode.cols-1, mode.rows-1):
                 if (mode.finishedRoom == 4):
                     print("final!")
@@ -296,11 +304,10 @@ class MazeMode(Mode):
                 if (not mode.getPlayerCell(mode.pX, mode.pY, "left")):
                     mode.pX -= 1  
 
-        # *** turn off? Go back to main menu
         elif (event.key == "m"):
             if (not mode.disableMazeKeys):
                 mode.app.setActiveMode(mode.app.mainMenuMode)
-                # mode.appStarted()
+                mode.app.mazeMode.appStarted()
 
         if (mode.disableMazeKeys):
             if (not mode.showTextEditor):
@@ -318,31 +325,51 @@ class MazeMode(Mode):
                 elif (event.key == "6"):
                     mode.currentSide = 5 
             else:
-                if (event.key in string.printable):
-                    idx = len(mode.previousText) - 1
-                    oldPos = mode.previousText[idx].pos
-                    updatePos = [mode.previousText[idx].pos[0] + mode.editorFontSize, 
-                                mode.previousText[idx].pos[1]]
-                    if (updatePos[1] < mode.editorPos[1] + mode.editorSize * 9/10): 
-                        mode.mouseIdx += 1   
+                if (event.key in string.printable and len(mode.highlighted) == 0):
+                    if (len(mode.previousText) == 0):
+                        mode.previousText.append(noteChar(mode.textStartPos, mode.editorFontSize, mode.editorSize, event.key, "black"))
+                        mode.previousPoses.append(mode.textStartPos)
+                        mode.mousePos = [mode.textStartPos[0] + mode.editorFontSize/2, mode.textStartPos[1]]
+                    else:
+                        idx = len(mode.previousText) - 1
+                        updatePos = [mode.previousText[idx].pos[0] + mode.editorFontSize, 
+                                    mode.previousText[idx].pos[1]]
                         if (updatePos[0] > mode.editorPos[0] + mode.editorSize * 9/10):
                             updatePos[0] = mode.editorPos[0] + mode.editorSize * 1/10
                             updatePos[1] = mode.previousText[idx].pos[1] + mode.editorFontSize
-                        mode.previousText[idx].pos = updatePos
-                        mode.previousText.insert(idx - 1, noteChar(oldPos, mode.editorFontSize, mode.editorSize, event.key, "black")) 
+                        mode.previousText.append(noteChar(updatePos, mode.editorFontSize, mode.editorSize, event.key, "black"))
+                        mode.previousPoses.append(updatePos)
+                        mode.mousePos = [updatePos[0] + mode.editorFontSize/2, updatePos[1]]
+                        mode.mouseIdx += 1
+                elif (event.key == "c" and len(mode.highlighted) > 0):
+                    copyHighlighted = copy.deepcopy(mode.highlighted[::-1])
+                    mode.previousText.extend(copyHighlighted)
+                    for h in range(len(mode.highlighted)):
+                        copyHighlighted[h].pos = [mode.previousText[len(mode.previousText)-1].pos[0] + mode.editorFontSize * h, mode.previousText[len(mode.previousText)-1].pos[1]]
+                    
                 else:
                     if (event.key == "Delete"):
-                        print(mode.mouseIdx)
-                        if (mode.mouseIdx > 1):
-                            lastPos = mode.previousText[mode.mouseIdx-2].pos
-                            mode.previousText[mode.mouseIdx].pos = lastPos
-                            mode.previousText.pop(mode.mouseIdx-2)
+                        if (mode.mouseIdx > 0):
+                            mode.previousText.pop(mode.mouseIdx)
+                            mode.previousPoses.pop(mode.mouseIdx)
+                            mode.mousePos = [mode.previousText[mode.mouseIdx - 1].pos[0] + mode.editorFontSize/2, 
+                                             mode.previousText[mode.mouseIdx - 1].pos[1]]
                             mode.mouseIdx -= 1
-                        elif (mode.mouseIdx == 1):
-                            lastPos = mode.previousText[0].pos
-                            mode.previousText[mode.mouseIdx].pos = lastPos
-                            mode.previousText.pop(0)
-                            mode.mouseIdx = 0
+                        else:
+                            if (len(mode.previousText) == 0):
+                                mode.previousText = []
+                                mode.previousPoses = []
+                                mode.mousePos = [mode.textStartPos[0], mode.textStartPos[1]]
+                                mode.mouseIdx = 0   
+                            else:
+                                mode.previousText.pop(0)
+                                mode.mousePos = [mode.textStartPos[0], mode.textStartPos[1]]
+                                mode.mouseIdx = 0   
+                        
+                        # Code from: https://stackoverflow.com/questions/11434599/remove-list-from-list-in-python  
+                        newText = [t for t in mode.previousText if t not in mode.highlighted]  
+                        mode.previousText = newText 
+                        mode.highlighted = []
 
     def click(mode, mX, mY, pos, size):
         x0, y0 = pos
@@ -352,76 +379,58 @@ class MazeMode(Mode):
 
     def mouseDragged(mode, event):
         if (mode.disableMazeKeys and mode.showTextEditor):
-            if (mode.click(event.x, event.y, mode.editorPos, mode.editorSize)):
-                pass
-                # mode.editorPos = [event.x - mode.editorSize/2, event.y - mode.editorSize/2]
-                # if (len(mode.previousText) > 0):
-                #     for c in mode.previousText:
-                #         c.editorPos = mode.editorPos
-
+            for i in range(len(mode.previousText)):
+                pos = [mode.previousText[i].pos[0] - mode.editorFontSize/2, mode.previousText[i].pos[1] - mode.editorFontSize/2]
+                if mode.click(event.x, event.y, pos, mode.editorFontSize):
+                    mode.previousText[i].highlight = True
+                    mode.highlighted.append(mode.previousText[i])
 
     def mousePressed(mode, event):
         if (mode.disableMazeKeys):
             if mode.click(event.x, event.y, mode.editorButtonPos, mode.editorButtonSize):
-                mode.editorPos = [mode.width/2, mode.height/2]
                 mode.showTextEditor = not mode.showTextEditor
             
-            # if (len(mode.previousText) >= 1):
             moveFrom = None
             prevMouse = mode.mouseIdx
             for i in range(len(mode.previousText)):
                 pos = [mode.previousText[i].pos[0] - mode.editorFontSize/2, mode.previousText[i].pos[1] - mode.editorFontSize/2]
                 if mode.click(event.x, event.y, pos, mode.editorFontSize):
                     mode.mouseIdx = i
-                    moveFrom = mode.previousText[i]
-                    
-                    print(moveFrom.chr)
-                    print(mode.previousText.index(moveFrom))
-                    # idxFrom = mode.previousText.index(moveFrom)
-                # # mode.mouseIdx = idxFrom
-            
-            # print(prevMouse, idxFrom)
-            # text1 = mode.previousText[0:idxFrom]
-            # text1.append(mode.previousText[prevMouse])
-            # text2 = mode.previousText[idxFrom:(len(mode.previousText)-1)]
-            # print(len(text1), len(text2), len(mode.previousText))
-            
-            # mode.previousText = text1 + text2
-            # for i in range(len(text1)):
-            #     text1[i].pos[0] -= mode.editorFontSize/2
+                    mode.mousePos = [mode.previousText[i].pos[0] + mode.editorFontSize/2, mode.previousText[i].pos[1]]
+                else:
+                    mode.previousText[i].highlight = False
 
         if (mode.disableMazeKeys and not mode.showTextEditor):
-            mode.editorPos = [mode.width/2, mode.height/2]
             cr = mode.rooms[mode.currentRoomIdx]
             for i in range(len(cr.items)):
                 if (mode.currentSide == cr.items[i].sideIdx):
                     if (cr.items[i].clickOnItem(event.x, event.y, cr.collectedItems) != None) and (cr.items[i].status == False):
                         if (cr.items[i].interaction == "add"):
-                            mode.hint = f'YOU COLLECTED {cr.items[i].name}'
+                            mode.hint = f'YOU COLLECTED {cr.items[i].name.upper()}'
                             cr.collectedItems.append(cr.items[i].name)
                             cr.items[i].status = True
                         elif (cr.items[i].interaction == "remove"):
-                            mode.hint = f"YOU REMOVED {cr.items[i].name}"
+                            mode.hint = f'YOU REMOVED {cr.items[i].name.upper()}'
                             cr.items[i].status = True
                         elif (cr.items[i].interaction == "see"):
-                            mode.hint = f'YOU SAW {cr.items[i].name}'
+                            mode.hint = f'YOU SAW {cr.items[i].name.upper()}'
+                            cr.items[i].status = True
                         elif (cr.items[i].interaction == "combine"):
-                            mode.hint = "COMBINED! (***IN PROGRESS)"
-                            # *** change based on room
-                            # if (mode.items[i].reachRequire):
-                            #     mode.collectedItems.remove("raw eggs")
-                            #     mode.collectedItems.remove("flour")
-                            #     mode.collectedItems.extend(["eggs","pancakes"])
-                            #     mode.items[i].status = True
-                            #     print("collected combined!")
-                            # else:
-                            #     print("collect requirements")
+                            if (cr.items[i].reachRequire):
+                                mode.hint = "YOU'VE COMBINED THE REQUIRED INGREDIENTS!"
+                                cr.items[i].status = True
+                            else:
+                                mode.hint = "SEARCH FOR OTHER REQUIRED INGREDIENTS"
                         elif (cr.items[i].interaction == "password"):
-                            mode.hint = "ANSWER THIS PUZZLE"
-                            cr.items[i].passwordEntry(cr.userAnswer, cr.question, cr.correctAnswer, cr.addItem, cr.collectedItems, mode.hint)
+                            mode.hint = mode.passwordhint
+                            if (time.time() - mode.timer < 800):
+                                cr.items[i].passwordEntry(cr.userAnswer, cr.question, cr.correctAnswer, cr.addItem, cr.collectedItems, mode.passwordhint)
+                            else:
+                                mode.passwordhint = "YOU'VE MISSED THE CHANCE, GAME OVER!"
+                                mode.hint = mode.passwordhint
                     else:
-                        mode.hint = "TRY SOMEWHERE ELSE"            
-        
+                        mode.hint = "TRY SOMEWHERE ELSE"                
+
 class Cell(MazeMode):
     def __init__(self, col, row, cols, rows, grids, gridSize):
         self.col = col
@@ -517,7 +526,7 @@ class RoomMode(MazeMode):
         self.idx = idx
         self.roomColor = prop.roomColors[self.idx]
         self.displayRoom = False
-        self.viewPortPos = [(0, 0), (self.width, self.height * (2/3))]
+        self.viewPortPos = [(0, 0), (self.width, self.height)]
         self.textDisplayPos = [(0, self.height * (2/3)), (self.width, self.height)]
         self.viewPortSize = [self.width, self.height * (2/3)]
         self.textDisplaySize = [self.width, self.height * (1/3)]
@@ -547,7 +556,7 @@ class RoomMode(MazeMode):
         self.correctAnswer = ""
         self.question = ""
         self.addItem = prop.riddleAddItem[self.idx]
-        if (self.idx == 1 or self.idx == 3):
+        if (self.idx == 1 or self.idx == 2 or self.idx == 3):
             randIdx = math.floor(random.randrange(0, 6))
             self.question = prop.riddles[randIdx]["Q"]
             self.correctAnswer = prop.riddles[randIdx]["A"]
@@ -557,17 +566,15 @@ class RoomMode(MazeMode):
             self.correctAnswer = prop.r1Answer
 
     def drawTextdisplay(self, canvas, pos, size, idx, currentSide, hint):
-        canvas.create_rectangle(pos[0][0], pos[0][1],
-                                pos[1][0], pos[1][1], 
-                                fill = 'gold', width = 0)
         textPos = (pos[0][0] + size[0]/2, pos[0][1] + size[1]/2)
         if len(hint) > 0:
             self.roomText = hint
         else:
-            self.roomText = f'FIND THE ITEMS FOR {prop.roomNames[self.idx]}'
+            self.roomText = f'{prop.roomNames[self.idx]}'
         verify = set(self.collectedItems)
         if verify == prop.roomAllItems[idx]:
-            self.roomText = 'YOU HAVE COLLECTED ALL ITEMS, PRESS M FOR MAIN MENU'
+            self.roomText = 'WELL DONE! PRESS ENTER TO GET BACK TO MAZE'
+            # mode.finishedRoom += 1
         canvas.create_text(textPos[0], textPos[1], 
                           text = self.roomText, font = self.font, fill = 'white')
         roomsideTextPos = (pos[0][0] + size[0]/20, pos[0][1] + size[0]/20)
@@ -575,11 +582,9 @@ class RoomMode(MazeMode):
                           text = self.roomSides[currentSide], 
                           font = self.font, fill = 'white', anchor='w')
     
-    def drawViewport(self, canvas, pos, currentSide, itemsImg):
+    def drawViewport(self, canvas, pos, currentSide, itemsImg, bgImg):
         # display view background
-        canvas.create_rectangle(pos[0][0], pos[0][1],
-                                pos[1][0], pos[1][1], 
-                                fill = self.roomColor, width = 0)  
+        canvas.create_image(pos[1][0]/2, pos[1][1]/2, image = ImageTk.PhotoImage(bgImg))
         
         # display all items
         for i in range(len(self.items)):
@@ -643,14 +648,21 @@ class item(RoomMode):
 
 class HelpMode(Mode):
     def appStarted(mode):
-        mode.topMargin = 350
-        mode.font = 'Courier 26 bold'        
+        mode.topMargin = 200
+        mode.titleFont = 'Courier 26 bold'  
+        mode.font = 'Courier 18 bold'  
+        mode.bg = mode.loadImage(prop.bgURL)       
     
     def redrawAll(mode, canvas):
-        canvas.create_rectangle(0, 0, mode.width, mode.height, fill = 'blue')
-        canvas.create_text(mode.width/2, mode.topMargin * 1/3, text = 'HELP', font = mode.font, fill = 'white')
-        canvas.create_text(mode.width/2, mode.topMargin * 2/3, text = '(SOME INSTRUCTIONS & BG STORY)', font = mode.font, fill = 'white')
-        canvas.create_text(mode.width/2, mode.topMargin, text = 'PRESS M FOR MENU', font = mode.font, fill = 'white')
+        canvas.create_image(mode.width/2, mode.height/2, image = ImageTk.PhotoImage(mode.bg))
+        canvas.create_text(mode.width/2, mode.topMargin * 2/3, text = 'HELP', font = mode.titleFont, fill = 'gold')
+        canvas.create_text(mode.width/2, mode.topMargin * 2/3 + mode.topMargin * 1/6, text = 'MAZE INTERACTIONS:', font = mode.titleFont, fill = '#8ccfff')
+        canvas.create_text(mode.width/2, mode.topMargin * 2/3 + mode.topMargin * 1/3, text = 'ARROW KEYS - NAVIGATION', font = mode.font, fill = '#8ccfff')
+        canvas.create_text(mode.width/2, mode.topMargin * 2/3 + mode.topMargin * 1/2, text = 'ENTER - GET INTO ROOMS', font = mode.font, fill = '#8ccfff')
+        canvas.create_text(mode.width/2, mode.topMargin * 2/3 + mode.topMargin * 5/6, text = 'ROOM INTERACTIONS: ', font = mode.titleFont, fill = '#8ccfff')
+        canvas.create_text(mode.width/2, mode.topMargin * 2/3 + mode.topMargin, text = 'MOUSE CLICK ON COLLECTABLE OBJECTS', font = mode.font, fill = '#8ccfff')
+        canvas.create_text(mode.width/2, mode.topMargin * 2/3 + mode.topMargin * 7/6, text = '1/2/3/4/5/6 - FRONT/RIGHT/BACK/LEFT/TOP/BOTTOM', font = mode.font, fill = '#8ccfff')
+        canvas.create_text(mode.width/2, mode.topMargin * 2.25, text = 'PRESS M FOR MENU', font = mode.font, fill = 'gold')
     
     def keyPressed(mode, event):
         if (event.key == "m"):
@@ -661,8 +673,8 @@ class TermProject(ModalApp):
         app.mainMenuMode = MainMenuMode()
         app.helpMode = HelpMode()
         app.mazeMode = MazeMode()
-        app.setActiveMode(app.mazeMode)
-        # app.setActiveMode(app.mainMenuMode)
+        # app.setActiveMode(app.helpMode)
+        app.setActiveMode(app.mainMenuMode)
         app.timerDelay = 50
 
 app = TermProject(width=800, height=600)

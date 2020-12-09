@@ -2,6 +2,12 @@
 bgURL = 'https://64.media.tumblr.com/41b660528784aacedfcb0472ac7091dd/881ddbaec1f23e43-a9/s1280x1920/7ddd9bc1bc4e35674ed06004ff22ad70e3218ee5.png'
 playerURL = 'https://64.media.tumblr.com/e42df5e052e4111dec860975689f9f7f/881ddbaec1f23e43-1f/s75x75_c1/a06f400c047f5d7f91488af06fe85eac8edd3e90.png'
 
+r1bg = 'https://64.media.tumblr.com/a28b2ece45642fcbc29b00f2b707ff21/881ddbaec1f23e43-15/s1280x1920/4acaed3ad8fc3c6d75205841809a4638a408e6bd.png' #jake
+r2bg = 'https://64.media.tumblr.com/8fbf4a9bfc86b05c38411f156aff65ae/881ddbaec1f23e43-cc/s1280x1920/2a81327750aee48ad405aa67f73dc3037a75bf49.png' #finn
+r3bg = 'https://64.media.tumblr.com/bfcdf12d0e92a729696432735bddbbc8/881ddbaec1f23e43-a4/s1280x1920/2db542740759716fecb25c6e195de6479606a5b7.png' #pb
+r4bg = 'https://64.media.tumblr.com/48de68b599f2e7cc7d7d71a0b923ea00/881ddbaec1f23e43-c3/s1280x1920/ea3707db377643199a2f5642ad6b6fd3cc5fdd58.png' #marceline
+
+roomBg = [r1bg, r2bg, r3bg, r4bg]
 # list of all items in the room
 r1=[
     {
@@ -23,7 +29,7 @@ r1=[
         "img": 'https://64.media.tumblr.com/d35e463cfa40b24038c97ee8d960a4fc/881ddbaec1f23e43-ab/s100x200/9fb80a976fc492e9b187a73fb7d89877e772d712.png'
     },
     {
-        "name": "raw eggs",
+        "name": "eggs",
         "interaction": "add",
         "status": False,
         "require": None,
@@ -44,7 +50,7 @@ r1=[
         "name": "pan",
         "interaction": "combine",
         "status": False,
-        "require": ["flour", "raw eggs"],
+        "require": ["flour", "eggs"],
         "timed": False,
         "position": (243, 179),
         "img": "https://64.media.tumblr.com/bda21dfc5bc796b68f22092c6b31ee2a/881ddbaec1f23e43-e4/s100x200/c93f4f2987525c7992a417869554500bff6502b8.png"
@@ -90,20 +96,11 @@ r3 =[
         "img": "https://64.media.tumblr.com/9385abf9b6545d1d5a8bc3dcfd8cfd0e/881ddbaec1f23e43-cc/s100x200/97789aee7f5327a86d2ee7b32cbd21ed34c9b922.png"
     },
     {
-        "name": "centrifuge",
-        "interaction": "combine",
-        "status": False,
-        "require": ["cow"],
-        "timed": False,
-        "position": (200, 150),
-        "img": "https://64.media.tumblr.com/650001356386f69fc544e02198cc00cc/881ddbaec1f23e43-42/s100x200/3ab39de9989be9010edf29d778ab189a76021707.png"
-    },
-    {
         "name": "lettuce",
-        "interaction": "game",
+        "interaction": "password",
         "status": False,
         "require": None,
-        "timed": False,
+        "timed": True,
         "position": (750, 305),
         "img": "https://64.media.tumblr.com/71ee7de9f845ef76da055dcc0d4fd980/881ddbaec1f23e43-e5/s100x200/7e25c330dfa41d6d541d3f65f8ea0706d33e6a39.png"
     },
@@ -147,7 +144,7 @@ r3 =[
 r4 =[
     {
         "name": "apple",
-        "interaction": "add",
+        "interaction": "password",
         "status": False,
         "require": None,
         "timed": True,
@@ -156,10 +153,10 @@ r4 =[
     },
     {
         "name": "marker",
-        "interaction": "password",
+        "interaction": "remove",
         "status": False,
         "require": None,
-        "timed": False,
+        "timed": True,
         "position": (54, 300),
         "img": "https://64.media.tumblr.com/5e2fe6bebf1febe92dc26f5ae8b24b7a/881ddbaec1f23e43-d9/s100x200/c2d8f4179b0503871527086b07787907b85d757f.png"
     },
@@ -192,14 +189,14 @@ r4 =[
     }
 ]
 
-r1AllItems = {"bacon", "pancakes", "eggs"}
+r1AllItems = {"bacon", "flour", "eggs"}
 r2AllItems = {"cake", "chocolate frosting", "vanilla frosting"}
-r3AllItems = {"cheese", "lettuce", "tomato", "bread"}
+r3AllItems = {"cheese", "lettuce", "jellyfish", "red balloon", "bread"}
 r4AllItems = {"apple", "marker", "book", "frame"}
 
 roomAllItems = [r1AllItems, r2AllItems, r3AllItems, r4AllItems]
 roomProperties = [r1, r2, r3, r4]   
-roomNames = ["JAKE", "FINN", "PRINCESS BUBBLEGUM", "MARCELINE"] 
+roomNames = ["JAKE'S BACON PANCAKE", "FINN'S FINN CAKE", "PRINCESS BUBBLEGUM'S PERFECT SANDWICH", "MARCELINE'S RED THINGS"] 
 roomColors = ["#a14b00", "#00a6ff", "#ffb04f", "#696d70"]
 
 riddles =[
