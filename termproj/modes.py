@@ -77,8 +77,8 @@ class MazeMode(Mode):
         mode.roomLen = 4
         
         mode.topMargin = 300
-        mode.bg = mode.loadImage('assets/menuBg.png')
-        mode.playerImg = mode.loadImage('assets/player.png')
+        mode.bg = mode.loadImage('https://64.media.tumblr.com/41b660528784aacedfcb0472ac7091dd/881ddbaec1f23e43-a9/s1280x1920/7ddd9bc1bc4e35674ed06004ff22ad70e3218ee5.png')
+        mode.playerImg = mode.loadImage('https://64.media.tumblr.com/e42df5e052e4111dec860975689f9f7f/881ddbaec1f23e43-1f/s75x75_c1/a06f400c047f5d7f91488af06fe85eac8edd3e90.png')
         mode.startTime = time.time()
         mode.titleFont = 'Courier 18 bold' 
 
